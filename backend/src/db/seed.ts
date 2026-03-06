@@ -86,18 +86,18 @@ function seed() {
   const adminPassword = process.env.ADMIN_PASSWORD ?? "Admin@1234!";
 
   const existingAdmin = db
-    .prepare("SELECT id FROM admin_users WHERE email = ?")
+    .prepare("SELECT id FROM admin_users WHERE email = ? OR username = 'admin'")
     .get(adminEmail);
 
   if (!existingAdmin) {
     const passwordHash = hashSync(adminPassword, 12);
     db.prepare(`
-      INSERT INTO admin_users (username, email, password_hash) VALUES (?, ?, ?)
+      INSERT OR IGNORE INTO admin_users (username, email, password_hash) VALUES (?, ?, ?)
     `).run("admin", adminEmail, passwordHash);
     console.log(`✅ Admin criado: ${adminEmail}`);
     console.log("   ⚠️  Troque a senha padrão no primeiro acesso ao painel!\n");
   } else {
-    console.log(`ℹ️  Admin já existe: ${adminEmail}\n`);
+    console.log(`ℹ️  Admin já existe (email ou username 'admin' já cadastrado)\n`);
   }
 
   // ── Formulários de inscrição ──────────────────────────────────────────────
