@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
-import heroImage from "@/assets/hero-robotics.png";
+import heroImage from "@/assets/hero-robotics.avif";
 
 const HeroSection = () => {
   const scrollTo = (id: string) =>

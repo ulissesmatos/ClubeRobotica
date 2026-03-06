@@ -70,6 +70,14 @@ const ContactSection = () => {
             <Heart className="w-4 h-4 text-secondary fill-secondary shrink-0" />
             <span>em Codó, MA</span>
           </p>
+          <p className="mt-3">
+            <a
+              href="/admin/login"
+              className="text-navy-foreground/25 text-xs hover:text-navy-foreground/50 transition-colors"
+            >
+              Área Restrita
+            </a>
+          </p>
         </div>
       </div>
     </footer>

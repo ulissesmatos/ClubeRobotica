@@ -1,0 +1,58 @@
+# docker-compose.yml — Robotica Landing Page
+# Uso local:  docker compose up --build
+# Uso Coolify: importar este arquivo como "Docker Compose" stack
+
+services:
+
+  # ─── Backend (Fastify API + SQLite) ───────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    # Variáveis injetadas pelo Coolify (ou por um .env na raiz do projeto para uso local)
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      DB_PATH: /data/db.sqlite
+      UPLOAD_DIR: /uploads
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-100}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+    volumes:
+      - db_data:/data                 # SQLite persiste entre reinicializações
+      - uploads_data:/uploads         # Arquivos enviados pelos usuários
+    expose:
+      - "3001"                        # Interno à rede Docker (não exposto ao host)
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]
+      interval: 20s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  # ─── Frontend (React + Nginx) ─────────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"                       # Expõe porta 80 ao host
+    depends_on:
+      backend:
+        condition: service_healthy    # Só sobe após o backend passar o healthcheck
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+# ─── Volumes persistentes ─────────────────────────────────────────────────────
+volumes:
+  db_data:
+    driver: local
+  uploads_data:
+    driver: local

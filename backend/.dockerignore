@@ -1,0 +1,18 @@
+# ─── Dependencies & build output ─────────────────────────────────────────────
+node_modules/
+dist/
+
+# ─── Environment & secrets ────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── Runtime data (volumes) ───────────────────────────────────────────────────
+data/
+uploads/
+
+# ─── Dev/editor noise ─────────────────────────────────────────────────────────
+*.log
+*.log.*
+.DS_Store
+coverage/

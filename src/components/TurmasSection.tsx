@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
 const turmas = [
@@ -8,7 +9,8 @@ const turmas = [
     subtitle: "3º ao 5º Ano • Matutino",
     description:
       "Inicie sua jornada na robótica com atividades divertidas e criativas!",
-    formUrl: "https://forms.gle/F9R5Et9P38MsC1XM9",
+    formUrl: "/inscricao/4",
+    internal: true,
   },
   {
     title: "Fundamental I",
@@ -16,7 +18,8 @@ const turmas = [
     subtitle: "3º ao 5º Ano • Vespertino",
     description:
       "Divirta-se criando robôs e explorando a tecnologia à tarde!",
-    formUrl: "https://forms.gle/FXeV2PrzVScZXCyKA",
+    formUrl: "/inscricao/5",
+    internal: true,
   },
   {
     title: "Fundamental II",
@@ -24,7 +27,8 @@ const turmas = [
     subtitle: "6º ao 9º Ano • Matutino",
     description:
       "Desenvolva lógica de programação e construa projetos reais!",
-    formUrl: "https://forms.gle/cRakyo4UZRXhvhqr8",
+    formUrl: "/inscricao/1",
+    internal: true,
   },
   {
     title: "Fundamental II",
@@ -32,7 +36,8 @@ const turmas = [
     subtitle: "6º ao 9º Ano • Vespertino",
     description:
       "Desafios avançados, projetos complexos e competições de robótica!",
-    formUrl: "https://forms.gle/fUQMciBwmj5tuNuQ9",
+    formUrl: "/inscricao/6",
+    internal: true,
   },
 ];
 
@@ -93,15 +98,23 @@ const TurmasSection = () => {
                 <p className="text-sm text-muted-foreground mb-5 flex-1">
                   {turma.description}
                 </p>
-                <a
-                  href={turma.formUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Button className="w-full rounded-full font-bold text-sm">
-                    Inscrever-se
-                  </Button>
-                </a>
+                {turma.internal ? (
+                  <Link to={turma.formUrl}>
+                    <Button className="w-full rounded-full font-bold text-sm">
+                      Inscrever-se
+                    </Button>
+                  </Link>
+                ) : (
+                  <a
+                    href={turma.formUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button className="w-full rounded-full font-bold text-sm">
+                      Inscrever-se
+                    </Button>
+                  </a>
+                )}
               </div>
             </motion.div>
           ))}
