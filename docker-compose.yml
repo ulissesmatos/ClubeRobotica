@@ -38,8 +38,8 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    ports:
-      - "80:80"                       # Expõe porta 80 ao host
+    expose:
+      - "80"                          # Traefik (Coolify) roteia para cá — não bind direto no host
     depends_on:
       backend:
         condition: service_healthy    # Só sobe após o backend passar o healthcheck
