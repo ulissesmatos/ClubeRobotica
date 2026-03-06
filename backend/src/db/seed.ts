@@ -1,9 +1,15 @@
 import "dotenv/config";
+import { createHash } from "crypto";
 import { hashSync } from "bcryptjs";
 import { getDb } from "./database";
 import { runMigrations } from "./migrate";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Gera slug de 6 chars hex deterministico a partir do título do formulário */
+function formSlug(title: string): string {
+  return createHash("sha256").update(title).digest("hex").slice(0, 6);
+}
 
 function insertFormField(
   formId: number,
@@ -31,22 +37,27 @@ function insertFormField(
   );
 }
 
-/** Cria um formulário se não existir, retorna o ID (novo ou existente) */
-function upsertForm(title: string, description: string): number {
+/** Cria um formulário se não existir, retorna ID e slug (novo ou existente) */
+function upsertForm(title: string, description: string): { id: number; slug: string } {
   const db = getDb();
+  const slug = formSlug(title);
   const existing = db
-    .prepare("SELECT id FROM forms WHERE title = ?")
-    .get(title) as { id: number } | undefined;
+    .prepare("SELECT id, slug FROM forms WHERE title = ?")
+    .get(title) as { id: number; slug: string | null } | undefined;
   if (existing) {
+    if (!existing.slug) {
+      db.prepare("UPDATE forms SET slug = ? WHERE id = ?").run(slug, existing.id);
+      console.log(`↻  Slug definido para o formulário ID ${existing.id}: ${slug}`);
+    }
     console.log(`ℹ️  Formulário "${title}" já existe (ID ${existing.id}) — pulando.`);
-    return existing.id;
+    return { id: existing.id, slug: existing.slug ?? slug };
   }
   const res = db.prepare(`
-    INSERT INTO forms (title, description, is_active) VALUES (?, ?, 1)
-  `).run(title, description);
+    INSERT INTO forms (title, description, is_active, slug) VALUES (?, ?, 1, ?)
+  `).run(title, description, slug);
   const id = Number(res.lastInsertRowid);
-  console.log(`✅ Formulário criado: "${title}" (ID ${id})`);
-  return id;
+  console.log(`✅ Formulário criado: "${title}" (ID ${id}, slug: ${slug})`);
+  return { id, slug };
 }
 
 /** Insere os 8 campos padrão de inscrição, parametrizando apenas as opções de série */
@@ -115,7 +126,7 @@ function seed() {
   console.log("─".repeat(55));
 
   // Form 1 – Fundamental II Manhã (já existia, mantém ID 1)
-  const id1 = upsertForm(
+  const { id: id1, slug: slug1 } = upsertForm(
     "Inscrição Fundamental II — 6º ao 9º Ano (Manhã)",
     "Formulário de inscrição para o programa de robótica — turma Fundamental II, 6º ao 9º ano, período matutino."
   );
@@ -124,7 +135,7 @@ function seed() {
   console.log("─".repeat(55));
 
   // Form 2 – Fundamental I Manhã
-  const id2 = upsertForm(
+  const { id: id2, slug: slug2 } = upsertForm(
     "Inscrição Fundamental I — 3º ao 5º Ano (Manhã)",
     "Formulário de inscrição para o programa de robótica — turma Fundamental I, 3º ao 5º ano, período matutino."
   );
@@ -133,7 +144,7 @@ function seed() {
   console.log("─".repeat(55));
 
   // Form 3 – Fundamental I Tarde
-  const id3 = upsertForm(
+  const { id: id3, slug: slug3 } = upsertForm(
     "Inscrição Fundamental I — 3º ao 5º Ano (Tarde)",
     "Formulário de inscrição para o programa de robótica — turma Fundamental I, 3º ao 5º ano, período vespertino."
   );
@@ -142,7 +153,7 @@ function seed() {
   console.log("─".repeat(55));
 
   // Form 4 – Fundamental II Tarde Avançada
-  const id4 = upsertForm(
+  const { id: id4, slug: slug4 } = upsertForm(
     "Inscrição Fundamental II — 6º ao 9º Ano (Tarde Avançada)",
     "Formulário de inscrição para o programa de robótica — turma Fundamental II, 6º ao 9º ano, período vespertino avançado."
   );
@@ -150,10 +161,10 @@ function seed() {
 
   console.log("─".repeat(55));
   console.log("\n📋 Endpoints dos formulários:");
-  console.log(`   GET /api/forms/${id1}  → Fundamental II Manhã`);
-  console.log(`   GET /api/forms/${id2}  → Fundamental I  Manhã`);
-  console.log(`   GET /api/forms/${id3}  → Fundamental I  Tarde`);
-  console.log(`   GET /api/forms/${id4}  → Fundamental II Tarde Avançada`);
+  console.log(`   GET /api/forms/${slug1}  → Fundamental II Manhã`);
+  console.log(`   GET /api/forms/${slug2}  → Fundamental I  Manhã`);
+  console.log(`   GET /api/forms/${slug3}  → Fundamental I  Tarde`);
+  console.log(`   GET /api/forms/${slug4}  → Fundamental II Tarde Avançada`);
   console.log("\n✅ Seed concluído com sucesso!");
 }
 

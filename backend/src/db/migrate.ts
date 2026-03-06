@@ -92,6 +92,15 @@ const MIGRATIONS: { name: string; sql: string }[] = [
         WHERE protocol != '';
     `,
   },
+  {
+    // Adiciona coluna slug curto (6 chars hex) à tabela forms.
+    // Gerado deterministicamente via SHA-256 do título — não expõe IDs sequenciais.
+    name: "003_add_form_slug",
+    sql: `
+      ALTER TABLE forms ADD COLUMN slug TEXT;
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_forms_slug ON forms(slug);
+    `,
+  },
 ];
 
 export function runMigrations(): void {

@@ -1,21 +1,29 @@
 import { FastifyInstance, FastifyRequest } from "fastify";
-import { getFormById } from "../services/forms.service";
+import { getFormById, getFormBySlug, listActiveForms } from "../services/forms.service";
 
 export async function formsRoutes(app: FastifyInstance) {
   /**
-   * GET /api/forms/:id
-   * Rota pública — usada pelo frontend para renderizar o formulário.
+   * GET /api/forms
+   * Rota pública — retorna lista de formulários ativos (para TurmasSection).
+   */
+  app.get("/forms", async (_request, reply) => {
+    const forms = listActiveForms();
+    return reply.status(200).send({ forms });
+  });
+
+  /**
+   * GET /api/forms/:ref
+   * Rota pública — aceita ID numérico OU slug de 6 chars hex.
    * Só retorna formulários ativos.
    */
   app.get(
-    "/forms/:id",
-    async (request: FastifyRequest<{ Params: { id: string } }>, reply) => {
-      const id = parseInt(request.params.id, 10);
-      if (isNaN(id)) {
-        return reply.status(400).send({ error: "Bad Request", message: "ID inválido." });
-      }
+    "/forms/:ref",
+    async (request: FastifyRequest<{ Params: { ref: string } }>, reply) => {
+      const { ref } = request.params;
 
-      const form = getFormById(id);
+      const form = /^\d+$/.test(ref)
+        ? getFormById(Number(ref))
+        : getFormBySlug(ref);
 
       if (!form) {
         return reply.status(404).send({ error: "Not Found", message: "Formulário não encontrado." });
@@ -37,6 +45,7 @@ export async function formsRoutes(app: FastifyInstance) {
         form: {
           id: form.id,
           title: form.title,
+          slug: form.slug,
           description: form.description,
           fields,
         },

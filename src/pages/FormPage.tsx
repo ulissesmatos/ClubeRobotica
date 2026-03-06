@@ -287,7 +287,7 @@ function FieldCard({
 // ─── FormPage ─────────────────────────────────────────────────────────────────
 
 export default function FormPage() {
-  const { formId } = useParams<{ formId: string }>();
+  const { slug } = useParams<{ slug: string }>();
 
   // Form definition state
   const [form, setForm] = useState<ApiForm | null>(null);
@@ -318,9 +318,9 @@ export default function FormPage() {
 
   // Load form definition
   useEffect(() => {
-    if (!formId) return;
+    if (!slug) return;
     setLoadState("loading");
-    fetchForm(formId)
+    fetchForm(slug)
       .then((f) => {
         setForm(f);
         setLoadState("ready");
@@ -329,7 +329,7 @@ export default function FormPage() {
         setLoadError(e.message);
         setLoadState("error");
       });
-  }, [formId]);
+  }, [slug]);
 
   // Show restore banner once saved data is detected
   useEffect(() => {

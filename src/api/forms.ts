@@ -25,8 +25,16 @@ export interface ApiFormField {
 export interface ApiForm {
   id: number;
   title: string;
+  slug: string | null;
   description: string | null;
   fields: ApiFormField[];
+}
+
+export interface ActiveForm {
+  id: number;
+  title: string;
+  slug: string;
+  description: string | null;
 }
 
 export interface SubmitResult {
@@ -46,6 +54,13 @@ export async function fetchForm(formId: string | number): Promise<ApiForm> {
   }
   const json = await res.json();
   return json.form as ApiForm;
+}
+
+export async function fetchActiveForms(): Promise<ActiveForm[]> {
+  const res = await fetch("/api/forms");
+  if (!res.ok) return [];
+  const data = await res.json();
+  return (data.forms ?? []) as ActiveForm[];
 }
 
 // ─── Submit via XHR (for upload progress events) ─────────────────────────────

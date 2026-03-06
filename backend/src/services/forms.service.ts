@@ -7,6 +7,7 @@ export interface FormRow {
   title: string;
   description: string | null;
   is_active: number;
+  slug: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -67,6 +68,25 @@ export function listForms(): FormRow[] {
   return db
     .prepare("SELECT * FROM forms ORDER BY created_at DESC")
     .all() as unknown as FormRow[];
+}
+
+export function listActiveForms(): Pick<FormRow, "id" | "title" | "slug" | "description">[] {
+  const db = getDb();
+  return db
+    .prepare("SELECT id, title, slug, description FROM forms WHERE is_active = 1 ORDER BY id ASC")
+    .all() as unknown as Pick<FormRow, "id" | "title" | "slug" | "description">[];
+}
+
+export function getFormBySlug(slug: string): FormWithFields | null {
+  const db = getDb();
+  const form = db
+    .prepare("SELECT * FROM forms WHERE slug = ?")
+    .get(slug) as unknown as FormRow | undefined;
+  if (!form) return null;
+  const fields = db
+    .prepare("SELECT * FROM form_fields WHERE form_id = ? ORDER BY field_order ASC")
+    .all(form.id) as unknown as FormFieldRow[];
+  return { ...form, fields };
 }
 
 // ─── Criação ─────────────────────────────────────────────────────────────────

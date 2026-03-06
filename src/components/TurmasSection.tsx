@@ -1,45 +1,41 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { fetchActiveForms, ActiveForm } from "@/api/forms";
 
-const turmas = [
-  {
-    title: "Fundamental I",
-    turno: "Manhã",
-    subtitle: "3º ao 5º Ano • Matutino",
-    description:
-      "Inicie sua jornada na robótica com atividades divertidas e criativas!",
-    formUrl: "/inscricao/4",
-    internal: true,
-  },
-  {
-    title: "Fundamental I",
-    turno: "Tarde",
-    subtitle: "3º ao 5º Ano • Vespertino",
-    description:
-      "Divirta-se criando robôs e explorando a tecnologia à tarde!",
-    formUrl: "/inscricao/5",
-    internal: true,
-  },
-  {
-    title: "Fundamental II",
-    turno: "Manhã",
-    subtitle: "6º ao 9º Ano • Matutino",
-    description:
-      "Desenvolva lógica de programação e construa projetos reais!",
-    formUrl: "/inscricao/1",
-    internal: true,
-  },
-  {
-    title: "Fundamental II",
-    turno: "Tarde Avançada",
-    subtitle: "6º ao 9º Ano • Vespertino",
-    description:
-      "Desafios avançados, projetos complexos e competições de robótica!",
-    formUrl: "/inscricao/6",
-    internal: true,
-  },
-];
+function deriveCardConfig(title: string) {
+  const isFII = /fundamental ii/i.test(title);
+  const isTarde = /tarde/i.test(title);
+  const isAvancada = /avançada/i.test(title);
+
+  const level = isFII ? "Fundamental II" : "Fundamental I";
+  const yearRange = isFII ? "6º ao 9º Ano" : "3º ao 5º Ano";
+
+  let turno: string;
+  let period: string;
+  let description: string;
+
+  if (!isTarde) {
+    turno = "Manhã";
+    period = "Matutino";
+    description = isFII
+      ? "Desenvolva lógica de programação e construa projetos reais!"
+      : "Inicie sua jornada na robótica com atividades divertidas e criativas!";
+  } else if (isAvancada) {
+    turno = "Tarde Avançada";
+    period = "Vespertino";
+    description = "Desafios avançados, projetos complexos e competições de robótica!";
+  } else {
+    turno = "Tarde";
+    period = "Vespertino";
+    description = isFII
+      ? "Desenvolva projetos avançados de robótica à tarde!"
+      : "Divirta-se criando robôs e explorando a tecnologia à tarde!";
+  }
+
+  return { level, turno, subtitle: `${yearRange} • ${period}`, description };
+}
 
 const cardVariants = {
   hidden: { opacity: 0, y: 30 },
@@ -51,6 +47,15 @@ const cardVariants = {
 };
 
 const TurmasSection = () => {
+  const [forms, setForms] = useState<ActiveForm[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchActiveForms()
+      .then(setForms)
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
     <section id="turmas" className="py-20 md:py-28 bg-background">
       <div className="container mx-auto px-4">
@@ -73,52 +78,58 @@ const TurmasSection = () => {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
-          {turmas.map((turma, i) => (
-            <motion.div
-              key={`${turma.title}-${turma.turno}`}
-              custom={i}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={cardVariants}
-              whileHover={{ y: -6, scale: 1.02 }}
-              className="bg-card rounded-2xl shadow-md border border-border overflow-hidden flex flex-col transition-shadow hover:shadow-xl"
-            >
-              <div className="p-5 flex flex-col flex-1">
-                <h3 className="text-lg font-extrabold text-foreground font-display">
-                  {turma.title}
-                </h3>
-                <span className="text-sm font-bold text-primary mb-1">
-                  ({turma.turno})
-                </span>
-                <p className="text-xs text-muted-foreground font-semibold mb-3">
-                  {turma.subtitle}
-                </p>
-                <p className="text-sm text-muted-foreground mb-5 flex-1">
-                  {turma.description}
-                </p>
-                {turma.internal ? (
-                  <Link to={turma.formUrl}>
-                    <Button className="w-full rounded-full font-bold text-sm">
-                      Inscrever-se
-                    </Button>
-                  </Link>
-                ) : (
-                  <a
-                    href={turma.formUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Button className="w-full rounded-full font-bold text-sm">
-                      Inscrever-se
-                    </Button>
-                  </a>
-                )}
-              </div>
-            </motion.div>
-          ))}
-        </div>
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+            {[...Array(4)].map((_, i) => (
+              <div
+                key={i}
+                className="bg-card rounded-2xl shadow-md border border-border h-52 animate-pulse"
+              />
+            ))}
+          </div>
+        ) : forms.length === 0 ? (
+          <p className="text-center text-muted-foreground text-lg">
+            Inscrições em breve. Fique ligado!
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+            {forms.map((form, i) => {
+              const config = deriveCardConfig(form.title);
+              return (
+                <motion.div
+                  key={form.id}
+                  custom={i}
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true }}
+                  variants={cardVariants}
+                  whileHover={{ y: -6, scale: 1.02 }}
+                  className="bg-card rounded-2xl shadow-md border border-border overflow-hidden flex flex-col transition-shadow hover:shadow-xl"
+                >
+                  <div className="p-5 flex flex-col flex-1">
+                    <h3 className="text-lg font-extrabold text-foreground font-display">
+                      {config.level}
+                    </h3>
+                    <span className="text-sm font-bold text-primary mb-1">
+                      ({config.turno})
+                    </span>
+                    <p className="text-xs text-muted-foreground font-semibold mb-3">
+                      {config.subtitle}
+                    </p>
+                    <p className="text-sm text-muted-foreground mb-5 flex-1">
+                      {config.description}
+                    </p>
+                    <Link to={`/inscricao/${form.slug}`}>
+                      <Button className="w-full rounded-full font-bold text-sm">
+                        Inscrever-se
+                      </Button>
+                    </Link>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </section>
   );
