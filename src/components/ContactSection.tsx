@@ -64,10 +64,11 @@ const ContactSection = () => {
 
         {/* Bottom bar */}
         <div className="border-t border-navy-foreground/20 pt-6 text-center">
-          <p className="text-navy-foreground/45 text-sm flex items-center justify-center gap-1.5">
-            © 2026 Clubinho de Robótica — Feito com{" "}
-            <Heart className="w-4 h-4 text-secondary fill-secondary inline" />{" "}
-            em Codó, MA
+          <p className="text-navy-foreground/45 text-sm flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 leading-relaxed">
+            <span>© 2026 Clubinho de Robótica</span>
+            <span>— Feito com</span>
+            <Heart className="w-4 h-4 text-secondary fill-secondary shrink-0" />
+            <span>em Codó, MA</span>
           </p>
         </div>
       </div>

@@ -77,7 +77,7 @@ const HeroSection = () => {
           </p>
           <p className="text-primary-foreground/80 text-base md:text-lg mb-8 max-w-lg mx-auto md:mx-0">
             Aprenda robótica, programação e eletrônica de forma divertida e
-            criativa. Para crianças do&nbsp;1º ao 9º ano!
+            criativa. Para crianças do&nbsp;3º ao 9º ano!
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
@@ -120,7 +120,7 @@ const HeroSection = () => {
       {/* Scroll cue */}
       <motion.button
         onClick={() => scrollTo("turmas")}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1 text-primary-foreground/50 hover:text-primary-foreground/80 transition-colors"
+        className="absolute bottom-8 inset-x-0 mx-auto w-fit flex flex-col items-center gap-1 text-primary-foreground/50 hover:text-primary-foreground/80 transition-colors"
         animate={{ y: [0, 7, 0] }}
         transition={{ repeat: Infinity, duration: 1.8 }}
         aria-label="Rolar para baixo"
