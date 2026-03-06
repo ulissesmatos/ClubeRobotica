@@ -1,44 +1,38 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 
-const WHATSAPP_NUMBER = "559998881234";
-
 const turmas = [
   {
     title: "Fundamental I",
     turno: "Manhã",
-    subtitle: "1º ao 5º Ano • Matutino",
+    subtitle: "3º ao 5º Ano • Matutino",
     description:
       "Inicie sua jornada na robótica com atividades divertidas e criativas!",
-    message:
-      "Olá! Gostaria de me inscrever na turma Fundamental I (Manhã) do Clubinho de Robótica!",
+    formUrl: "https://forms.gle/F9R5Et9P38MsC1XM9",
   },
   {
     title: "Fundamental I",
     turno: "Tarde",
-    subtitle: "1º ao 5º Ano • Vespertino",
+    subtitle: "3º ao 5º Ano • Vespertino",
     description:
       "Divirta-se criando robôs e explorando a tecnologia à tarde!",
-    message:
-      "Olá! Gostaria de me inscrever na turma Fundamental I (Tarde) do Clubinho de Robótica!",
+    formUrl: "https://forms.gle/FXeV2PrzVScZXCyKA",
   },
   {
     title: "Fundamental II",
-    turno: "Tarde",
-    subtitle: "6º ao 9º Ano • Vespertino",
+    turno: "Manhã",
+    subtitle: "6º ao 9º Ano • Matutino",
     description:
       "Desenvolva lógica de programação e construa projetos reais!",
-    message:
-      "Olá! Gostaria de me inscrever na turma Fundamental II (Tarde) do Clubinho de Robótica!",
+    formUrl: "https://forms.gle/cRakyo4UZRXhvhqr8",
   },
   {
     title: "Fundamental II",
-    turno: "Tarde - Avançado",
+    turno: "Tarde Avançada",
     subtitle: "6º ao 9º Ano • Vespertino",
     description:
       "Desafios avançados, projetos complexos e competições de robótica!",
-    message:
-      "Olá! Gostaria de me inscrever na turma Fundamental II (Avançado) do Clubinho de Robótica!",
+    formUrl: "https://forms.gle/fUQMciBwmj5tuNuQ9",
   },
 ];
 
@@ -100,7 +94,7 @@ const TurmasSection = () => {
                   {turma.description}
                 </p>
                 <a
-                  href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(turma.message)}`}
+                  href={turma.formUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
