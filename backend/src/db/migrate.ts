@@ -101,6 +101,15 @@ const MIGRATIONS: { name: string; sql: string }[] = [
       CREATE UNIQUE INDEX IF NOT EXISTS idx_forms_slug ON forms(slug);
     `,
   },
+  {
+    // Adiciona coluna display_order à tabela forms.
+    // Controla a ordem em que os cards aparecem na landing page.
+    name: "004_add_form_display_order",
+    sql: `
+      ALTER TABLE forms ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0;
+      UPDATE forms SET display_order = id;
+    `,
+  },
 ];
 
 export function runMigrations(): void {

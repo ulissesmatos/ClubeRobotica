@@ -8,6 +8,7 @@ export interface FormRow {
   description: string | null;
   is_active: number;
   slug: string | null;
+  display_order: number;
   created_at: string;
   updated_at: string;
 }
@@ -73,7 +74,7 @@ export function listForms(): FormRow[] {
 export function listActiveForms(): Pick<FormRow, "id" | "title" | "slug" | "description">[] {
   const db = getDb();
   return db
-    .prepare("SELECT id, title, slug, description FROM forms WHERE is_active = 1 ORDER BY id ASC")
+    .prepare("SELECT id, title, slug, description FROM forms WHERE is_active = 1 ORDER BY display_order ASC")
     .all() as unknown as Pick<FormRow, "id" | "title" | "slug" | "description">[];
 }
 
@@ -96,15 +97,32 @@ export function createForm(
   description?: string
 ): FormRow {
   const db = getDb();
+  const maxOrder = (db
+    .prepare("SELECT COALESCE(MAX(display_order), 0) as m FROM forms")
+    .get() as { m: number }).m;
   const result = db
-    .prepare(
-      "INSERT INTO forms (title, description) VALUES (?, ?)"
-    )
-    .run(title, description ?? null);
+    .prepare("INSERT INTO forms (title, description, display_order) VALUES (?, ?, ?)")
+    .run(title, description ?? null, maxOrder + 1);
 
   return db
     .prepare("SELECT * FROM forms WHERE id = ?")
     .get(result.lastInsertRowid) as unknown as FormRow;
+}
+
+export function reorderForms(items: { id: number; display_order: number }[]): void {
+  const db = getDb();
+  const update = db.prepare("UPDATE forms SET display_order = ? WHERE id = ?");
+  // node:sqlite não tem .transaction() nativo — usa BEGIN/COMMIT manual
+  db.exec("BEGIN");
+  try {
+    for (const item of items) {
+      update.run(item.display_order, item.id);
+    }
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
 }
 
 export function createField(

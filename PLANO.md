@@ -311,6 +311,147 @@ refresh_tokens   (id, admin_id, token_hash, expires_at, created_at)
 
 ---
 
+### FASE 10 — Painel Admin: Editor de Formulários (Google Forms-like)
+
+> **Objetivo:** dar ao admin controle total sobre os formulários sem precisar alterar código.
+> Editor visual de campos, reordenação drag-and-drop, preview ao vivo, edição de cards da landing page.
+
+#### 10.A — Backend: ordem de exibição dos cards
+
+- [ ] Migration `004_add_form_display_order`:
+  ```sql
+  ALTER TABLE forms ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0;
+  UPDATE forms SET display_order = id;
+  ```
+- [ ] `forms.service.ts`: atualizar `listActiveForms()` para ordenar por `display_order ASC`
+- [ ] `forms.service.ts`: adicionar `reorderForms(items: {id, display_order}[])` em transação
+- [ ] `forms.service.ts`: atualizar `createForm` para setar `display_order = MAX(display_order)+1`
+- [ ] `admin.routes.ts`: adicionar endpoint `PUT /api/admin/forms/reorder`
+  - Body: `[{ id: number, display_order: number }]`
+  - Validação Zod: array de objetos com id + display_order numéricos
+  - Rota registrada **antes** de `PUT /forms/:id` para evitar conflito
+
+#### 10.B — Frontend: instalar DnD
+
+- [ ] Instalar dependências:
+  ```bash
+  npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities
+  ```
+
+#### 10.C — Frontend: página de listagem `/admin/forms`
+
+**File:** `src/pages/admin/FormsPage.tsx`
+
+Layout: tabela/lista vertical com drag handle no início de cada linha.
+
+Colunas por formulário:
+- ⠿ drag handle (cursor grab)
+- Status badge (Ativo / Inativo) com toggle click
+- Título do formulário
+- Slug badge (monospace cinza, com ícone de copiar)
+- Qtd de campos
+- "Editar" → navega para `/admin/forms/:id`
+- "Inscrições" → navega para `/admin/dashboard?form=:id`
+
+Comportamentos:
+- Ao soltar o drag → chama `PUT /api/admin/forms/reorder` com nova ordem
+- Atualização otimista: troca a ordem na UI antes da resposta
+- Toggle de status: `PUT /api/admin/forms/:id` `{ is_active: !form.is_active }` com feedback toast
+- Botão "+ Nova Turma" (topo direito) → navega para `/admin/forms/new`
+- Estado vazio: mensagem "Nenhum formulário cadastrado ainda"
+
+- [ ] Criar `src/pages/admin/FormsPage.tsx`
+- [ ] Adicionar rota `/admin/forms` em `src/main.tsx`
+- [ ] Adicionar link "Turmas" no nav do painel (DashboardPage + SubmissionDetailPage)
+
+#### 10.D — Frontend: editor de formulário `/admin/forms/:id`
+
+**File:** `src/pages/admin/FormEditorPage.tsx`
+
+Layout dois painéis lado a lado (divisão 55% / 45%):
+
+**Painel esquerdo — Editor:**
+
+1. Header sticky:
+   - Botão "← Voltar" (volta para /admin/forms)
+   - Badge do slug + status (Ativo/Inativo toggle)
+   - Botão "Salvar alterações" (disabled quando sem mudanças pendentes)
+
+2. Seção "Card da Landing Page":
+   - Input: **Título exibido no card** (texto livre, ex: "Fundamental I")
+   - Input: **Subtítulo do turno** (ex: "Manhã", "Tarde Avançada")
+   - Textarea: **Descrição do card** (texto exibido embaixo do título)
+   - Input: **Descrição interna** (metadado, não aparece na landing page)
+
+3. Seção "Campos do Formulário":
+   - Lista sortable via @dnd-kit/sortable
+   - Cada campo (FieldCard component):
+     - ⠿ drag handle
+     - Ícone do tipo (text=Aa, date=📅, file=📎, select=▾, radio=🔘, etc.)
+     - Label do campo
+     - Badge "obrigatório" ou "opcional"
+     - ✏️ botão editar → expande FieldEditor inline abaixo do card
+     - 🗑️ botão excluir → modal de confirmação
+   - Ao soltar drag → chama `PUT /api/admin/forms/:id/fields/reorder`
+   - "+ Adicionar campo" button (abre FieldEditor em branco ao final da lista)
+
+4. FieldEditor (inline, expansível):
+   - **Tipo** (select com ícones): text | date | cpf | tel | email | number | textarea | radio | select | file
+   - **Label** (input text, obrigatório)
+   - **Name** (input text, auto-gerado do label via slugify, editável)
+   - **Placeholder** (input text, visível para: text/tel/email/number/textarea/cpf)
+   - **Obrigatório** (toggle)
+   - **Opções** (só para radio/select): lista dinâmica de inputs
+     - Cada opção: input texto + botão remover (×)
+     - Botão "+ Adicionar opção"
+     - Drag-and-drop das opções para reordenar
+   - Botões: "Salvar campo" / "Cancelar"
+
+**Painel direito — Preview ao vivo** (esconde em mobile, botão "Ver preview"):
+- Renderiza `<FormPreview fields={currentFields} />` — reutiliza os mesmos componentes do `FormPage`
+- Header com o título atual do formulário
+- Atualiza em tempo real a cada mudança de campo
+- Label "Preview — como o aluno vai ver"
+
+**Criar novo formulário (`/admin/forms/new`):**
+- Formulário simples: título, subtítulo do turno, descrição do card
+- Ao salvar → `POST /api/admin/forms` → redireciona para `/admin/forms/:newId`
+
+- [ ] Criar `src/pages/admin/FormEditorPage.tsx`
+- [ ] Criar `src/components/admin/FieldCard.tsx` (card de campo com drag handle)
+- [ ] Criar `src/components/admin/FieldEditor.tsx` (editor inline de campo)
+- [ ] Criar `src/components/admin/FormPreview.tsx` (live preview reutilizando lógica do FormPage)
+- [ ] Adicionar rotas `/admin/forms/:id` e `/admin/forms/new` em `src/main.tsx`
+
+#### 10.E — Frontend: funções de API admin
+
+**File:** `src/api/admin.ts` (adicionar novas funções às existentes)
+
+- [ ] `fetchAdminForms(): Promise<AdminForm[]>` → `GET /api/admin/forms`
+- [ ] `fetchAdminForm(id): Promise<AdminFormWithFields>` → `GET /api/admin/forms/:id`
+- [ ] `createAdminForm(data)` → `POST /api/admin/forms`
+- [ ] `updateAdminForm(id, data)` → `PUT /api/admin/forms/:id`
+- [ ] `reorderAdminForms(items)` → `PUT /api/admin/forms/reorder`
+- [ ] `createAdminField(formId, data)` → `POST /api/admin/forms/:id/fields`
+- [ ] `updateAdminField(formId, fieldId, data)` → `PUT /api/admin/forms/:id/fields/:fieldId`
+- [ ] `deleteAdminField(formId, fieldId)` → `DELETE /api/admin/forms/:id/fields/:fieldId`
+- [ ] `reorderAdminFields(formId, items)` → `PUT /api/admin/forms/:id/fields/reorder`
+- [ ] Tipos TypeScript: `AdminForm`, `AdminFormWithFields`, `AdminField`
+
+#### 10.F — Detalhes de UX e Segurança
+
+- [ ] Aviso de alterações não salvas ao tentar sair da página (`beforeunload` ou React Router blocker)
+- [ ] Toast de feedback para todas as operações (salvo ✅ / erro ❌)
+- [ ] Skeleton loading no FormEditorPage
+- [ ] Validação client-side antes de enviar para API:
+  - Label não pode ser vazio
+  - Name só aceita `[a-z0-9_]` — auto-sanitizar ao digitar
+  - radio/select precisam de pelo menos 2 opções
+- [ ] Não permitir excluir o único campo do formulário
+- [ ] Ao criar campo novo, focar automaticamente no input de label
+
+---
+
 ## 🔌 Endpoints Resumidos
 
 | Método | Rota | Auth | Descrição |
@@ -318,11 +459,19 @@ refresh_tokens   (id, admin_id, token_hash, expires_at, created_at)
 | POST | `/api/auth/login` | ❌ | Login admin |
 | POST | `/api/auth/refresh` | ❌ | Renovar token |
 | POST | `/api/auth/logout` | ✅ | Logout |
-| GET | `/api/forms/:id` | ❌ | Buscar form (público) |
+| GET | `/api/forms` | ❌ | Listar forms ativos (landing page) |
+| GET | `/api/forms/:ref` | ❌ | Buscar form por ID ou slug (público) |
 | POST | `/api/forms/:id/submit` | ❌ | Submeter inscrição |
-| GET | `/api/admin/forms` | ✅ | Listar forms |
+| GET | `/api/admin/forms` | ✅ | Listar todos os forms |
 | POST | `/api/admin/forms` | ✅ | Criar form |
-| PUT | `/api/admin/forms/:id` | ✅ | Editar form |
+| PUT | `/api/admin/forms/reorder` | ✅ | Reordenar cards da landing page |
+| GET | `/api/admin/forms/:id` | ✅ | Detalhe do form com campos |
+| PUT | `/api/admin/forms/:id` | ✅ | Editar form (título/desc/status) |
+| DELETE | `/api/admin/forms/:id` | ✅ | Soft delete do form |
+| POST | `/api/admin/forms/:id/fields` | ✅ | Adicionar campo |
+| PUT | `/api/admin/forms/:id/fields/:fid` | ✅ | Editar campo |
+| DELETE | `/api/admin/forms/:id/fields/:fid` | ✅ | Remover campo |
+| PUT | `/api/admin/forms/:id/fields/reorder` | ✅ | Reordenar campos |
 | GET | `/api/admin/submissions` | ✅ | Listar submissões |
 | GET | `/api/admin/submissions/:id` | ✅ | Detalhe submissão |
 | PUT | `/api/admin/submissions/:id/status` | ✅ | Alterar status |

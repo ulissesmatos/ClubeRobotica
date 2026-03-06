@@ -50,6 +50,8 @@ export interface FormRow {
   title: string;
   description: string | null;
   is_active: number;
+  slug: string | null;
+  display_order: number;
   created_at: string;
 }
 
@@ -183,6 +185,22 @@ export async function fetchUploadAsBlob(
 
 // ─── Forms ────────────────────────────────────────────────────────────────────
 
+export interface AdminField {
+  id: number;
+  form_id: number;
+  type: string;
+  label: string;
+  name: string;
+  placeholder: string | null;
+  required: boolean;
+  field_order: number;
+  options: string[] | null;
+}
+
+export interface AdminFormWithFields extends FormRow {
+  fields: AdminField[];
+}
+
 export async function apiListForms(token: string): Promise<FormRow[]> {
   const res = await fetch("/api/admin/forms", {
     headers: buildAuthHeaders(token),
@@ -190,4 +208,131 @@ export async function apiListForms(token: string): Promise<FormRow[]> {
   if (!res.ok) throw new Error("Erro ao carregar formulários.");
   const json = await res.json();
   return (json as { forms: FormRow[] }).forms;
+}
+
+export async function apiGetAdminForm(
+  token: string,
+  id: number
+): Promise<AdminFormWithFields> {
+  const res = await fetch(`/api/admin/forms/${id}`, {
+    headers: buildAuthHeaders(token),
+  });
+  if (!res.ok) throw new Error("Formulário não encontrado.");
+  const json = await res.json();
+  return (json as { form: AdminFormWithFields }).form;
+}
+
+export async function apiCreateForm(
+  token: string,
+  data: { title: string; description?: string }
+): Promise<FormRow> {
+  const res = await fetch("/api/admin/forms", {
+    method: "POST",
+    headers: { ...buildAuthHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error((json as { message?: string }).message ?? "Erro ao criar formulário.");
+  return (json as { form: FormRow }).form;
+}
+
+export async function apiUpdateForm(
+  token: string,
+  id: number,
+  data: { title?: string; description?: string; is_active?: boolean }
+): Promise<FormRow> {
+  const res = await fetch(`/api/admin/forms/${id}`, {
+    method: "PUT",
+    headers: { ...buildAuthHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error((json as { message?: string }).message ?? "Erro ao atualizar formulário.");
+  return (json as { form: FormRow }).form;
+}
+
+export async function apiReorderForms(
+  token: string,
+  items: { id: number; display_order: number }[]
+): Promise<void> {
+  const res = await fetch("/api/admin/forms/reorder", {
+    method: "PUT",
+    headers: { ...buildAuthHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+  });
+  if (!res.ok) throw new Error("Erro ao reordenar formulários.");
+}
+
+export async function apiCreateField(
+  token: string,
+  formId: number,
+  data: {
+    type: string;
+    label: string;
+    name: string;
+    placeholder?: string;
+    required: boolean;
+    options?: string[];
+    order: number;
+  }
+): Promise<AdminField> {
+  const res = await fetch(`/api/admin/forms/${formId}/fields`, {
+    method: "POST",
+    headers: { ...buildAuthHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error((json as { message?: string }).message ?? "Erro ao criar campo.");
+  const f = (json as { field: AdminField }).field;
+  return { ...f, required: Boolean(f.required), options: f.options ?? null };
+}
+
+export async function apiUpdateField(
+  token: string,
+  formId: number,
+  fieldId: number,
+  data: Partial<{
+    type: string;
+    label: string;
+    name: string;
+    placeholder: string | null;
+    required: boolean;
+    options: string[] | null;
+    order: number;
+  }>
+): Promise<AdminField> {
+  const res = await fetch(`/api/admin/forms/${formId}/fields/${fieldId}`, {
+    method: "PUT",
+    headers: { ...buildAuthHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error((json as { message?: string }).message ?? "Erro ao atualizar campo.");
+  const f = (json as { field: AdminField }).field;
+  return { ...f, required: Boolean(f.required), options: f.options ?? null };
+}
+
+export async function apiDeleteField(
+  token: string,
+  formId: number,
+  fieldId: number
+): Promise<void> {
+  const res = await fetch(`/api/admin/forms/${formId}/fields/${fieldId}`, {
+    method: "DELETE",
+    headers: buildAuthHeaders(token),
+  });
+  if (!res.ok) throw new Error("Erro ao remover campo.");
+}
+
+export async function apiReorderFields(
+  token: string,
+  formId: number,
+  items: { id: number; order: number }[]
+): Promise<void> {
+  const res = await fetch(`/api/admin/forms/${formId}/fields/reorder`, {
+    method: "PUT",
+    headers: { ...buildAuthHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+  });
+  if (!res.ok) throw new Error("Erro ao reordenar campos.");
 }

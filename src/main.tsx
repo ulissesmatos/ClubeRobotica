@@ -7,6 +7,8 @@ import FormPage from "./pages/FormPage.tsx";
 import LoginPage from "./pages/admin/LoginPage.tsx";
 import DashboardPage from "./pages/admin/DashboardPage.tsx";
 import SubmissionDetailPage from "./pages/admin/SubmissionDetailPage.tsx";
+import FormsPage from "./pages/admin/FormsPage.tsx";
+import FormEditorPage from "./pages/admin/FormEditorPage.tsx";
 import { AuthProvider, useAuth } from "./context/AuthContext.tsx";
 import "./index.css";
 
@@ -34,6 +36,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route path="/admin" element={<PrivateRoute />}>
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="submissions/:id" element={<SubmissionDetailPage />} />
+            <Route path="forms" element={<FormsPage />} />
+            <Route path="forms/:id" element={<FormEditorPage />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
         </Routes>

@@ -11,6 +11,7 @@ import {
   updateForm,
   updateField,
   reorderFields,
+  reorderForms,
   deactivateForm,
   deleteField,
   ALLOWED_FIELD_TYPES,
@@ -50,6 +51,12 @@ const fieldSchema = z.object({
 });
 
 const updateFieldSchema = fieldSchema.partial();
+
+const reorderFormsSchema = z.object({
+  items: z.array(
+    z.object({ id: z.number().int().positive(), display_order: z.number().int().min(0) })
+  ).min(1),
+});
 
 const reorderSchema = z.object({
   items: z.array(
@@ -114,6 +121,16 @@ export async function adminRoutes(app: FastifyInstance) {
     }
     const form = createForm(parsed.data.title, parsed.data.description);
     return reply.status(201).send({ form });
+  });
+
+  /** PUT /api/admin/forms/reorder — reordena cards da landing page */
+  app.put("/forms/reorder", async (request: FastifyRequest, reply) => {
+    const parsed = reorderFormsSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: "Validation Error", message: parsed.error.errors[0].message });
+    }
+    reorderForms(parsed.data.items);
+    return reply.status(200).send({ message: "Ordem atualizada com sucesso." });
   });
 
   /** PUT /api/admin/forms/:id — edita título/descrição/status */

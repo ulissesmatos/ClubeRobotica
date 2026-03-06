@@ -209,7 +209,10 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
           <span className="text-white/40 hidden sm:inline">·</span>
           <span className="text-white/70 text-sm hidden sm:inline">Programa de Robótica</span>
         </div>
-        <div className="flex items-center gap-3">
+        <nav className="flex items-center gap-4">
+          <Link to="/admin/dashboard" className="text-sm text-white/80 hover:text-white transition-colors">Inscrições</Link>
+          <Link to="/admin/forms" className="text-sm text-white/80 hover:text-white transition-colors">Turmas</Link>
+          <span className="text-white/30">|</span>
           <span className="text-sm text-white/70 hidden sm:inline">{admin?.email}</span>
           <button
             onClick={handleLogout}
@@ -218,7 +221,7 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
             <LogOut className="w-4 h-4" />
             <span className="hidden sm:inline">Sair</span>
           </button>
-        </div>
+        </nav>
       </header>
       <main className="max-w-4xl mx-auto px-4 py-8">{children}</main>
     </div>
