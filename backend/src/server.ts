@@ -99,7 +99,7 @@ async function bootstrap() {
   // ── Static files (uploads served via /api/admin/uploads with auth) ──
   await app.register(staticFiles, {
     root: path.resolve(UPLOAD_DIR),
-    prefix: "/uploads/",
+    prefix: "/api/admin/uploads/",
     decorateReply: false,
   });
 
