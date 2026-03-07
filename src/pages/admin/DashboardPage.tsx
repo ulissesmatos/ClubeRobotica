@@ -298,7 +298,7 @@ export default function DashboardPage() {
         {showFilters && (
           <div className="px-5 pb-4 pt-3 border-b border-border bg-muted/30 flex flex-wrap gap-4 items-end">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Formulário</label>
+              <label className="text-xs font-medium text-muted-foreground">Formulário </label>
               <select
                 value={formId ?? ""}
                 onChange={(e) => setFormId(e.target.value ? Number(e.target.value) : undefined)}
@@ -312,7 +312,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Status</label>
+              <label className="text-xs font-medium text-muted-foreground">Status </label>
               <select
                 value={status ?? ""}
                 onChange={(e) => setStatus((e.target.value as SubmissionStatus) || undefined)}
@@ -326,7 +326,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">De</label>
+              <label className="text-xs font-medium text-muted-foreground">De </label>
               <input
                 type="date"
                 value={dateFrom}
@@ -336,7 +336,7 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Até</label>
+              <label className="text-xs font-medium text-muted-foreground">Até </label>
               <input
                 type="date"
                 value={dateTo}
