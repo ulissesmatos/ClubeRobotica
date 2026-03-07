@@ -20,6 +20,7 @@ import {
 } from "../services/forms.service";
 import {
   listSubmissions,
+  countSubmissionsByForm,
   getSubmissionById,
   updateSubmissionStatus,
   deleteSubmission,
@@ -274,6 +275,15 @@ export async function adminRoutes(app: FastifyInstance) {
     page:     z.coerce.number().int().positive().default(1),
     pageSize: z.coerce.number().int().min(1).max(100).default(20),
   });
+
+  /** GET /api/admin/submissions/counts-by-form */
+  app.get(
+    "/submissions/counts-by-form",
+    async (_request, reply) => {
+      const counts = countSubmissionsByForm();
+      return reply.send({ counts });
+    }
+  );
 
   /** GET /api/admin/submissions?formId=&status=&search=&page=&pageSize= */
   app.get(

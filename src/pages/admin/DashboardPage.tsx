@@ -19,6 +19,7 @@ import { useAuth } from "@/context/AuthContext";
 import {
   apiListSubmissions,
   apiListForms,
+  apiCountByForm,
   type SubmissionListItem,
   type PaginatedSubmissions,
   type FormRow,
@@ -145,10 +146,20 @@ export default function DashboardPage() {
   const [error,   setError]     = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
-  // Fetch forms list for filter dropdown (once)
+  // Form submission counts for filter labels
+  const [formCounts, setFormCounts] = useState<Record<number, number>>({});
+
+  // Fetch forms list and counts for filter dropdown (once)
   useEffect(() => {
     if (!accessToken) return;
     apiListForms(accessToken).then(setForms).catch(() => {});
+    apiCountByForm(accessToken)
+      .then((counts) => {
+        const map: Record<number, number> = {};
+        for (const c of counts) map[c.form_id] = c.count;
+        setFormCounts(map);
+      })
+      .catch(() => {});
   }, [accessToken]);
 
   // Fetch summary counts (once + on refresh)
@@ -247,7 +258,7 @@ export default function DashboardPage() {
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Buscar por nome..."
+                placeholder="Buscar por nome ou código..."
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && applySearch()}
@@ -285,8 +296,8 @@ export default function DashboardPage() {
 
         {/* Expandable filters */}
         {showFilters && (
-          <div className="px-5 pb-4 pt-3 border-b border-border bg-muted/30 flex flex-wrap gap-3 items-end">
-            <div className="space-y-1">
+          <div className="px-5 pb-4 pt-3 border-b border-border bg-muted/30 flex flex-wrap gap-4 items-end">
+            <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Formulário</label>
               <select
                 value={formId ?? ""}
@@ -295,12 +306,12 @@ export default function DashboardPage() {
               >
                 <option value="">Todos</option>
                 {forms.map((f) => (
-                  <option key={f.id} value={f.id}>{f.title}</option>
+                  <option key={f.id} value={f.id}>{f.title} ({formCounts[f.id] ?? 0})</option>
                 ))}
               </select>
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Status</label>
               <select
                 value={status ?? ""}
@@ -314,7 +325,7 @@ export default function DashboardPage() {
               </select>
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">De</label>
               <input
                 type="date"
@@ -324,7 +335,7 @@ export default function DashboardPage() {
               />
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Até</label>
               <input
                 type="date"

@@ -104,6 +104,17 @@ export function buildAuthHeaders(token: string): HeadersInit {
 
 // ─── Submissions ──────────────────────────────────────────────────────────────
 
+export async function apiCountByForm(
+  token: string
+): Promise<{ form_id: number; count: number }[]> {
+  const res = await fetch("/api/admin/submissions/counts-by-form", {
+    headers: buildAuthHeaders(token),
+  });
+  if (!res.ok) throw new Error("Erro ao carregar contagens.");
+  const json = await res.json();
+  return (json as { counts: { form_id: number; count: number }[] }).counts;
+}
+
 export async function apiListSubmissions(
   token: string,
   params: {

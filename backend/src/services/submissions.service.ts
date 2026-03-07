@@ -209,12 +209,12 @@ export function listSubmissions(opts: ListSubmissionsOptions): {
     params.push(opts.dateTo + " 23:59:59");
   }
   if (opts.search) {
-    conditions.push(`EXISTS (
+    conditions.push(`(s.protocol LIKE ? OR EXISTS (
       SELECT 1 FROM submission_data sd
       WHERE sd.submission_id = s.id
         AND sd.value_text LIKE ?
-    )`);
-    params.push(`%${opts.search}%`);
+    ))`);
+    params.push(`%${opts.search}%`, `%${opts.search}%`);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
@@ -252,6 +252,15 @@ export function listSubmissions(opts: ListSubmissionsOptions): {
     pageSize,
     totalPages: Math.ceil(total / pageSize),
   };
+}
+
+// ─── Contagem por formulário ──────────────────────────────────────────────────
+
+export function countSubmissionsByForm(): { form_id: number; count: number }[] {
+  const db = getDb();
+  return db
+    .prepare("SELECT form_id, COUNT(*) as count FROM submissions GROUP BY form_id")
+    .all() as unknown as { form_id: number; count: number }[];
 }
 
 // ─── Detalhe ─────────────────────────────────────────────────────────────────
