@@ -7,7 +7,6 @@ import compress from "@fastify/compress";
 import rateLimit from "@fastify/rate-limit";
 import multipart from "@fastify/multipart";
 import jwt from "@fastify/jwt";
-import staticFiles from "@fastify/static";
 import path from "path";
 import fs from "fs";
 import { authRoutes } from "./routes/auth.routes";
@@ -96,12 +95,8 @@ async function bootstrap() {
     secret: JWT_SECRET_SAFE,
   });
 
-  // ── Static files (uploads served via /api/admin/uploads with auth) ──
-  await app.register(staticFiles, {
-    root: path.resolve(UPLOAD_DIR),
-    prefix: "/api/admin/uploads/",
-    decorateReply: false,
-  });
+  // Uploads são servidos via rota autenticada em admin.routes.ts
+  // (GET /api/admin/uploads/:year/:month/:uuid/:filename)
 
   // ── Health check ──
   app.get("/health", async () => ({ status: "ok", timestamp: new Date().toISOString() }));
