@@ -13,6 +13,7 @@ import {
   reorderFields,
   reorderForms,
   deactivateForm,
+  deleteForm,
   deleteField,
   ALLOWED_FIELD_TYPES,
   FormFieldRow,
@@ -152,17 +153,17 @@ export async function adminRoutes(app: FastifyInstance) {
     }
   );
 
-  /** DELETE /api/admin/forms/:id — soft delete (marca inativo) */
+  /** DELETE /api/admin/forms/:id — exclui formulário e dados associados */
   app.delete(
     "/forms/:id",
     async (request: FastifyRequest<{ Params: { id: string } }>, reply) => {
       const id = parseId(request.params.id);
       if (!id) return reply.status(400).send({ error: "Bad Request", message: "ID inválido." });
 
-      const ok = deactivateForm(id);
+      const ok = deleteForm(id);
       if (!ok) return reply.status(404).send({ error: "Not Found", message: "Formulário não encontrado." });
 
-      return reply.status(200).send({ message: "Formulário desativado com sucesso." });
+      return reply.status(200).send({ message: "Formulário excluído com sucesso." });
     }
   );
 

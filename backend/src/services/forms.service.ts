@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { getDb } from "../db/database";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -74,7 +75,7 @@ export function listForms(): FormRow[] {
 export function listActiveForms(): Pick<FormRow, "id" | "title" | "slug" | "description">[] {
   const db = getDb();
   return db
-    .prepare("SELECT id, title, slug, description FROM forms WHERE is_active = 1 ORDER BY display_order ASC")
+    .prepare("SELECT id, title, slug, description FROM forms WHERE is_active = 1 AND slug IS NOT NULL ORDER BY display_order ASC")
     .all() as unknown as Pick<FormRow, "id" | "title" | "slug" | "description">[];
 }
 
@@ -92,17 +93,22 @@ export function getFormBySlug(slug: string): FormWithFields | null {
 
 // ─── Criação ─────────────────────────────────────────────────────────────────
 
+function generateSlug(title: string): string {
+  return createHash("sha256").update(title).digest("hex").slice(0, 6);
+}
+
 export function createForm(
   title: string,
   description?: string
 ): FormRow {
   const db = getDb();
+  const slug = generateSlug(title + Date.now());
   const maxOrder = (db
     .prepare("SELECT COALESCE(MAX(display_order), 0) as m FROM forms")
     .get() as { m: number }).m;
   const result = db
-    .prepare("INSERT INTO forms (title, description, display_order) VALUES (?, ?, ?)")
-    .run(title, description ?? null, maxOrder + 1);
+    .prepare("INSERT INTO forms (title, description, display_order, slug) VALUES (?, ?, ?, ?)")
+    .run(title, description ?? null, maxOrder + 1, slug);
 
   return db
     .prepare("SELECT * FROM forms WHERE id = ?")
@@ -273,6 +279,28 @@ export function deactivateForm(id: number): boolean {
     )
     .run(id);
   return result.changes > 0;
+}
+
+/** Hard delete: apaga formulário, campos e submissões/dados associados */
+export function deleteForm(id: number): boolean {
+  const db = getDb();
+  const form = db.prepare("SELECT id FROM forms WHERE id = ?").get(id) as { id: number } | undefined;
+  if (!form) return false;
+  db.exec("BEGIN");
+  try {
+    // submission_data referencia submissions — apagar primeiro
+    db.prepare(
+      "DELETE FROM submission_data WHERE submission_id IN (SELECT id FROM submissions WHERE form_id = ?)"
+    ).run(id);
+    db.prepare("DELETE FROM submissions WHERE form_id = ?").run(id);
+    db.prepare("DELETE FROM form_fields WHERE form_id = ?").run(id);
+    db.prepare("DELETE FROM forms WHERE id = ?").run(id);
+    db.exec("COMMIT");
+    return true;
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
 }
 
 export function deleteField(fieldId: number, formId: number): boolean {

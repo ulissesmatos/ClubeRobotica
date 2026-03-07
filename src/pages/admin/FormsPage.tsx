@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import {
   DndContext,
   closestCenter,
@@ -27,12 +27,14 @@ import {
   Copy,
   Check,
   Loader2,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import {
   apiListForms,
   apiUpdateForm,
   apiReorderForms,
+  apiDeleteForm,
   type FormRow,
 } from "@/api/admin";
 
@@ -41,6 +43,23 @@ import {
 function AdminLayout({ children }: { children: React.ReactNode }) {
   const { admin, logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  const navLink = (to: string, label: string, matchPrefixes: string[]) => {
+    const isActive = matchPrefixes.some((p) => pathname.startsWith(p));
+    return (
+      <Link
+        to={to}
+        className={`text-sm transition-colors ${
+          isActive
+            ? "text-white font-semibold border-b border-white/60 pb-0.5"
+            : "text-white/80 hover:text-white"
+        }`}
+      >
+        {label}
+      </Link>
+    );
+  };
 
   async function handleLogout() {
     await logout();
@@ -57,8 +76,8 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
           <span className="text-white/70 text-sm hidden sm:inline">Programa de Robótica</span>
         </div>
         <nav className="flex items-center gap-4">
-          <Link to="/admin/dashboard" className="text-sm text-white/80 hover:text-white transition-colors">Inscrições</Link>
-          <Link to="/admin/forms" className="text-sm text-white font-semibold border-b border-white/60 pb-0.5">Turmas</Link>
+          {navLink("/admin/dashboard", "Inscrições", ["/admin/dashboard", "/admin/submissions"])}
+          {navLink("/admin/forms", "Turmas", ["/admin/forms"])}
           <span className="text-white/30">|</span>
           <span className="text-sm text-white/70 hidden sm:inline">{admin?.email}</span>
           <button
@@ -81,11 +100,13 @@ function SortableFormRow({
   form,
   onToggle,
   onCopySlug,
+  onDelete,
   copiedSlug,
 }: {
   form: FormRow;
   onToggle: (id: number, current: number) => void;
   onCopySlug: (slug: string) => void;
+  onDelete: (id: number, title: string) => void;
   copiedSlug: string | null;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -174,6 +195,13 @@ function SortableFormRow({
           <Pencil className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Editar</span>
         </Link>
+        <button
+          onClick={() => onDelete(form.id, form.title)}
+          className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 transition-colors hover:bg-red-50 px-2 py-1 rounded-lg"
+          title="Excluir formulário"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );
@@ -190,6 +218,8 @@ export default function FormsPage() {
   const [error, setError] = useState<string | null>(null);
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; title: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -251,6 +281,21 @@ export default function FormsPage() {
     }
   }
 
+  async function handleDelete() {
+    if (!deleteTarget || !accessToken) return;
+    setDeleting(true);
+    try {
+      await apiDeleteForm(accessToken, deleteTarget.id);
+      setForms((prev) => prev.filter((f) => f.id !== deleteTarget.id));
+      showToast("Formulário excluído ✓");
+    } catch {
+      showToast("Erro ao excluir formulário");
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  }
+
   function handleCopySlug(slug: string) {
     navigator.clipboard.writeText(`/inscricao/${slug}`).catch(() => {});
     setCopiedSlug(slug);
@@ -259,6 +304,43 @@ export default function FormsPage() {
 
   return (
     <AdminLayout>
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <h3 className="font-bold text-foreground">Excluir formulário?</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-1">
+              <span className="font-semibold text-foreground">{deleteTarget.title}</span>
+            </p>
+            <p className="text-sm text-muted-foreground mb-5">
+              Esta ação é permanente. O formulário, seus campos e todas as inscrições associadas serão removidos.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast */}
       {toastMsg && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-foreground text-background text-sm px-4 py-2 rounded-full shadow-lg z-50 animate-fade-in">
@@ -316,6 +398,7 @@ export default function FormsPage() {
                     form={form}
                     onToggle={handleToggle}
                     onCopySlug={handleCopySlug}
+                    onDelete={(id, title) => setDeleteTarget({ id, title })}
                     copiedSlug={copiedSlug}
                   />
                 ))}

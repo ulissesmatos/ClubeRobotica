@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
 import {
   ArrowLeft,
   Bot,
@@ -194,6 +194,23 @@ function DeleteModal({
 function AdminLayout({ children }: { children: React.ReactNode }) {
   const { admin, logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  const navLink = (to: string, label: string, matchPrefixes: string[]) => {
+    const isActive = matchPrefixes.some((p) => pathname.startsWith(p));
+    return (
+      <Link
+        to={to}
+        className={`text-sm transition-colors ${
+          isActive
+            ? "text-white font-semibold border-b border-white/60 pb-0.5"
+            : "text-white/80 hover:text-white"
+        }`}
+      >
+        {label}
+      </Link>
+    );
+  };
 
   async function handleLogout() {
     await logout();
@@ -210,8 +227,8 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
           <span className="text-white/70 text-sm hidden sm:inline">Programa de Robótica</span>
         </div>
         <nav className="flex items-center gap-4">
-          <Link to="/admin/dashboard" className="text-sm text-white/80 hover:text-white transition-colors">Inscrições</Link>
-          <Link to="/admin/forms" className="text-sm text-white/80 hover:text-white transition-colors">Turmas</Link>
+          {navLink("/admin/dashboard", "Inscrições", ["/admin/dashboard", "/admin/submissions"])}
+          {navLink("/admin/forms", "Turmas", ["/admin/forms"])}
           <span className="text-white/30">|</span>
           <span className="text-sm text-white/70 hidden sm:inline">{admin?.email}</span>
           <button

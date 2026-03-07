@@ -312,6 +312,17 @@ export async function apiUpdateField(
   return { ...f, required: Boolean(f.required), options: f.options ?? null };
 }
 
+export async function apiDeleteForm(
+  token: string,
+  formId: number
+): Promise<void> {
+  const res = await fetch(`/api/admin/forms/${formId}`, {
+    method: "DELETE",
+    headers: buildAuthHeaders(token),
+  });
+  if (!res.ok) throw new Error("Erro ao excluir formulário.");
+}
+
 export async function apiDeleteField(
   token: string,
   formId: number,
