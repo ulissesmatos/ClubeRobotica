@@ -386,7 +386,7 @@ export default function DashboardPage() {
                       {item.form_title}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground hidden lg:table-cell whitespace-nowrap">
-                      {new Date(item.submitted_at).toLocaleDateString("pt-BR")}
+                      {new Date(item.submitted_at + "Z").toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={item.status} />

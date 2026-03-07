@@ -367,7 +367,7 @@ export default function SubmissionDetailPage() {
             </div>
             <p className="text-sm text-muted-foreground">{submission.form_title}</p>
             <p className="text-xs text-muted-foreground mt-1">
-              Enviado em {new Date(submission.submitted_at).toLocaleString("pt-BR")}
+              Enviado em {new Date(submission.submitted_at + "Z").toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
               {submission.ip_address && ` · IP ${submission.ip_address}`}
             </p>
           </div>
