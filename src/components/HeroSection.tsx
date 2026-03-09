@@ -108,20 +108,20 @@ const HeroSection = () => {
           transition={{ duration: 0.65, delay: 0.15, ease: "easeOut" }}
         >
           <div className="relative">
-            <div className="absolute -inset-3 bg-secondary/25 rounded-3xl blur-2xl" />
+            <div className="absolute -inset-3 rounded-3xl blur-2xl" />
             <img
               src={heroImage}
               alt="Crianças aprendendo robótica"
-              className="relative w-full max-w-[480px] mx-auto rounded-3xl shadow-2xl border-4 border-primary-foreground/20 object-cover"
+              className="relative w-full max-w-[480px] mx-auto rounded-3xl border-4 border-primary-foreground/20 object-cover"
             />
           </div>
 
           {/* Logos realizacao */}
-          <div className="flex justify-center mt-2">
+          <div className="w-full max-w-[480px] flex justify-center items-center bg-white rounded-2xl shadow-md py-4 px-6 mt-0">
             <img
               src={logosCodomSemecti}
               alt="Prefeitura de Codó e SEMECTI"
-              className="h-14 w-auto object-contain brightness-0 invert opacity-75"
+              className="h-16 w-auto object-contain"
             />
           </div>
         </motion.div>
