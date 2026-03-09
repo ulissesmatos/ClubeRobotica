@@ -93,6 +93,29 @@ export function resolveUploadPath(relativePath: string): string {
   return path.join(uploadDir, safe);
 }
 
+// ─── Verificação de duplicidade ───────────────────────────────────────────────
+
+/**
+ * Verifica se já existe uma submissão para o mesmo formulário
+ * com o mesmo CPF. Retorna true se houver duplicata.
+ */
+export function hasDuplicateCpf(formId: number, cpfValue: string): boolean {
+  const db = getDb();
+  const normalized = cpfValue.replace(/\D/g, "");
+  if (!normalized) return false;
+
+  const row = db.prepare(`
+    SELECT 1 FROM submission_data sd
+    JOIN submissions s ON s.id = sd.submission_id
+    WHERE s.form_id = ?
+      AND sd.field_name = 'cpf'
+      AND REPLACE(REPLACE(REPLACE(sd.value_text, '.', ''), '-', ''), ' ', '') = ?
+    LIMIT 1
+  `).get(formId, normalized);
+
+  return !!row;
+}
+
 // ─── Criação de submissão ─────────────────────────────────────────────────────
 
 /** Gera um código de protocolo opaco — não sequencial, não revela a contagem de inscrições */

@@ -5,6 +5,7 @@ import {
   createSubmission,
   saveUploadedFile,
   isAllowedMime,
+  hasDuplicateCpf,
   SubmissionField,
 } from "../services/submissions.service";
 
@@ -93,6 +94,18 @@ export async function submissionsRoutes(app: FastifyInstance) {
           message: "Campos obrigatórios não preenchidos.",
           fields: validationErrors,
         });
+      }
+
+      // Verifica duplicidade de CPF para este formulário
+      const cpfField = form.fields.find((f) => f.type === "cpf");
+      if (cpfField) {
+        const cpfValue = textFields[cpfField.name];
+        if (cpfValue && hasDuplicateCpf(formId, cpfValue)) {
+          return reply.status(409).send({
+            error: "Conflict",
+            message: "Já existe uma inscrição com este CPF para esta turma.",
+          });
+        }
       }
 
       // Salva arquivo no disco
