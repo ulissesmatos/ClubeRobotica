@@ -110,6 +110,16 @@ const MIGRATIONS: { name: string; sql: string }[] = [
       UPDATE forms SET display_order = id;
     `,
   },
+  {
+    // Adiciona colunas de texto do card na landing page.
+    // Permite editar individualmente: nível, turno e subtítulo sem depender heurísticas do título.
+    name: "005_add_card_display_fields",
+    sql: `
+      ALTER TABLE forms ADD COLUMN card_level    TEXT;
+      ALTER TABLE forms ADD COLUMN card_turno    TEXT;
+      ALTER TABLE forms ADD COLUMN card_subtitle TEXT;
+    `,
+  },
 ];
 
 export function runMigrations(): void {

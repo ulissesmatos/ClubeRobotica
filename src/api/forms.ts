@@ -35,6 +35,9 @@ export interface ActiveForm {
   title: string;
   slug: string;
   description: string | null;
+  card_level: string | null;
+  card_turno: string | null;
+  card_subtitle: string | null;
 }
 
 export interface SubmitResult {

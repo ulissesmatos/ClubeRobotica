@@ -10,6 +10,9 @@ export interface FormRow {
   is_active: number;
   slug: string | null;
   display_order: number;
+  card_level: string | null;
+  card_turno: string | null;
+  card_subtitle: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -72,11 +75,11 @@ export function listForms(): FormRow[] {
     .all() as unknown as FormRow[];
 }
 
-export function listActiveForms(): Pick<FormRow, "id" | "title" | "slug" | "description">[] {
+export function listActiveForms(): Pick<FormRow, "id" | "title" | "slug" | "description" | "card_level" | "card_turno" | "card_subtitle">[] {
   const db = getDb();
   return db
-    .prepare("SELECT id, title, slug, description FROM forms WHERE is_active = 1 AND slug IS NOT NULL ORDER BY display_order ASC")
-    .all() as unknown as Pick<FormRow, "id" | "title" | "slug" | "description">[];
+    .prepare("SELECT id, title, slug, description, card_level, card_turno, card_subtitle FROM forms WHERE is_active = 1 AND slug IS NOT NULL ORDER BY display_order ASC")
+    .all() as unknown as Pick<FormRow, "id" | "title" | "slug" | "description" | "card_level" | "card_turno" | "card_subtitle">[];
 }
 
 export function getFormBySlug(slug: string): FormWithFields | null {
@@ -99,7 +102,8 @@ function generateSlug(title: string): string {
 
 export function createForm(
   title: string,
-  description?: string
+  description?: string,
+  cardFields?: { card_level?: string; card_turno?: string; card_subtitle?: string }
 ): FormRow {
   const db = getDb();
   const slug = generateSlug(title + Date.now());
@@ -107,8 +111,8 @@ export function createForm(
     .prepare("SELECT COALESCE(MAX(display_order), 0) as m FROM forms")
     .get() as { m: number }).m;
   const result = db
-    .prepare("INSERT INTO forms (title, description, display_order, slug) VALUES (?, ?, ?, ?)")
-    .run(title, description ?? null, maxOrder + 1, slug);
+    .prepare("INSERT INTO forms (title, description, display_order, slug, card_level, card_turno, card_subtitle) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .run(title, description ?? null, maxOrder + 1, slug, cardFields?.card_level ?? null, cardFields?.card_turno ?? null, cardFields?.card_subtitle ?? null);
 
   return db
     .prepare("SELECT * FROM forms WHERE id = ?")
@@ -175,7 +179,7 @@ export function createField(
 
 export function updateForm(
   id: number,
-  data: { title?: string; description?: string; is_active?: boolean }
+  data: { title?: string; description?: string; is_active?: boolean; card_level?: string | null; card_turno?: string | null; card_subtitle?: string | null }
 ): FormRow | null {
   const db = getDb();
   const existing = db
@@ -189,12 +193,15 @@ export function updateForm(
     data.description !== undefined ? data.description : existing.description;
   const is_active =
     data.is_active !== undefined ? (data.is_active ? 1 : 0) : existing.is_active;
+  const card_level = data.card_level !== undefined ? data.card_level : existing.card_level;
+  const card_turno = data.card_turno !== undefined ? data.card_turno : existing.card_turno;
+  const card_subtitle = data.card_subtitle !== undefined ? data.card_subtitle : existing.card_subtitle;
 
   db.prepare(`
     UPDATE forms
-    SET title = ?, description = ?, is_active = ?, updated_at = datetime('now')
+    SET title = ?, description = ?, is_active = ?, card_level = ?, card_turno = ?, card_subtitle = ?, updated_at = datetime('now')
     WHERE id = ?
-  `).run(title, description, is_active, id);
+  `).run(title, description, is_active, card_level, card_turno, card_subtitle, id);
 
   return db.prepare("SELECT * FROM forms WHERE id = ?").get(id) as unknown as FormRow;
 }

@@ -543,6 +543,9 @@ export default function FormEditorPage() {
   // Local editable state (unsaved)
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [cardLevel, setCardLevel] = useState("");
+  const [cardTurno, setCardTurno] = useState("");
+  const [cardSubtitle, setCardSubtitle] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [fields, setFields] = useState<AdminField[]>([]);
   const [dirty, setDirty] = useState(false);
@@ -569,6 +572,9 @@ export default function FormEditorPage() {
         setForm(data);
         setTitle(data.title);
         setDescription(data.description ?? "");
+        setCardLevel(data.card_level ?? "");
+        setCardTurno(data.card_turno ?? "");
+        setCardSubtitle(data.card_subtitle ?? "");
         setIsActive(data.is_active === 1);
         setFields([...data.fields].sort((a, b) => a.field_order - b.field_order));
       })
@@ -600,6 +606,9 @@ export default function FormEditorPage() {
           title: title.trim(),
           description: description.trim() || undefined,
           is_active: isActive,
+          card_level: cardLevel.trim() || null,
+          card_turno: cardTurno.trim() || null,
+          card_subtitle: cardSubtitle.trim() || null,
         });
         setForm((prev) => prev ? { ...prev, ...updated } : prev);
         setDirty(false);
@@ -610,7 +619,7 @@ export default function FormEditorPage() {
     } finally {
       setSaving(false);
     }
-  }, [accessToken, isNew, formId, title, description, isActive, navigate]);
+  }, [accessToken, isNew, formId, title, description, cardLevel, cardTurno, cardSubtitle, isActive, navigate]);
 
   // Drag-end for fields
   async function handleFieldDragEnd(event: DragEndEvent) {
@@ -705,6 +714,47 @@ export default function FormEditorPage() {
               className="w-full text-lg font-bold border-0 border-b-2 border-border focus:border-primary outline-none bg-transparent py-1 text-foreground transition-colors"
             />
           </div>
+
+          {/* Card display fields */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">
+                Nível
+              </label>
+              <input
+                type="text"
+                value={cardLevel}
+                onChange={(e) => { setCardLevel(e.target.value); setDirty(true); }}
+                placeholder="Ex: Fundamental I"
+                className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:border-primary transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">
+                Turno <span className="font-normal normal-case text-primary">(Manhã / Tarde / Tarde Avançada)</span>
+              </label>
+              <input
+                type="text"
+                value={cardTurno}
+                onChange={(e) => { setCardTurno(e.target.value); setDirty(true); }}
+                placeholder="Ex: Manhã"
+                className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:border-primary transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">
+                Subtítulo
+              </label>
+              <input
+                type="text"
+                value={cardSubtitle}
+                onChange={(e) => { setCardSubtitle(e.target.value); setDirty(true); }}
+                placeholder="Ex: 3º ao 5º Ano • Matutino"
+                className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:border-primary transition-colors"
+              />
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">
               Descrição do card

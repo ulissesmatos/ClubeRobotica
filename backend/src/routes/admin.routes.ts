@@ -34,12 +34,18 @@ import {
 const createFormSchema = z.object({
   title: z.string().min(1, "Título obrigatório").max(200),
   description: z.string().max(1000).optional(),
+  card_level: z.string().max(100).optional(),
+  card_turno: z.string().max(100).optional(),
+  card_subtitle: z.string().max(200).optional(),
 });
 
 const updateFormSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).optional(),
   is_active: z.boolean().optional(),
+  card_level: z.string().max(100).nullable().optional(),
+  card_turno: z.string().max(100).nullable().optional(),
+  card_subtitle: z.string().max(200).nullable().optional(),
 });
 
 const fieldSchema = z.object({
@@ -121,7 +127,11 @@ export async function adminRoutes(app: FastifyInstance) {
     if (!parsed.success) {
       return reply.status(400).send({ error: "Validation Error", message: parsed.error.errors[0].message });
     }
-    const form = createForm(parsed.data.title, parsed.data.description);
+    const form = createForm(parsed.data.title, parsed.data.description, {
+      card_level: parsed.data.card_level,
+      card_turno: parsed.data.card_turno,
+      card_subtitle: parsed.data.card_subtitle,
+    });
     return reply.status(201).send({ form });
   });
 

@@ -94,7 +94,11 @@ const TurmasSection = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
             {forms.map((form, i) => {
-              const config = deriveCardConfig(form.title);
+              const derived = deriveCardConfig(form.title);
+              const level       = form.card_level    ?? derived.level;
+              const turno       = form.card_turno    ?? derived.turno;
+              const subtitle    = form.card_subtitle ?? derived.subtitle;
+              const description = form.description   ?? derived.description;
               return (
                 <motion.div
                   key={form.id}
@@ -108,16 +112,16 @@ const TurmasSection = () => {
                 >
                   <div className="p-5 flex flex-col flex-1">
                     <h3 className="text-lg font-extrabold text-foreground font-display">
-                      {config.level}
+                      {level}
                     </h3>
                     <span className="text-sm font-bold text-primary mb-1">
-                      ({config.turno})
+                      ({turno})
                     </span>
                     <p className="text-xs text-muted-foreground font-semibold mb-3">
-                      {config.subtitle}
+                      {subtitle}
                     </p>
                     <p className="text-sm text-muted-foreground mb-5 flex-1">
-                      {config.description}
+                      {description}
                     </p>
                     <Link to={`/inscricao/${form.slug}`}>
                       <Button className="w-full rounded-full font-bold text-sm">

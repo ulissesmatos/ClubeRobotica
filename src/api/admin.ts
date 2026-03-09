@@ -52,6 +52,9 @@ export interface FormRow {
   is_active: number;
   slug: string | null;
   display_order: number;
+  card_level: string | null;
+  card_turno: string | null;
+  card_subtitle: string | null;
   created_at: string;
 }
 
@@ -250,7 +253,7 @@ export async function apiCreateForm(
 export async function apiUpdateForm(
   token: string,
   id: number,
-  data: { title?: string; description?: string; is_active?: boolean }
+  data: { title?: string; description?: string; is_active?: boolean; card_level?: string | null; card_turno?: string | null; card_subtitle?: string | null }
 ): Promise<FormRow> {
   const res = await fetch(`/api/admin/forms/${id}`, {
     method: "PUT",
