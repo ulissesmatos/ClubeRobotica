@@ -39,7 +39,7 @@ function StatusBadge({ status }: { status: string }) {
     rejeitado: <XCircle className="w-3 h-3" />,
   };
   const labels: Record<string, string> = {
-    pendente: "Pendente", aprovado: "Aprovado", rejeitado: "Rejeitado",
+    pendente: "Pendente", aprovado: "Deferido", rejeitado: "Indeferido",
   };
   return (
     <span className={`inline-flex items-center gap-1 text-sm font-semibold px-3 py-1 rounded-full border ${map[status] ?? "bg-muted text-muted-foreground"}`}>
@@ -382,8 +382,8 @@ export default function SubmissionDetailPage() {
                 className="px-3 py-2 border border-border rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               >
                 <option value="pendente">Pendente</option>
-                <option value="aprovado">Aprovado</option>
-                <option value="rejeitado">Rejeitado</option>
+                <option value="aprovado">Deferido</option>
+                <option value="rejeitado">Indeferido</option>
               </select>
               {statusSaving && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
               {statusSaved  && <CheckCircle className="w-4 h-4 text-green-600" />}

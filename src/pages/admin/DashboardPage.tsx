@@ -35,7 +35,7 @@ function StatusBadge({ status }: { status: string }) {
     rejeitado: "bg-red-100 text-red-800 border-red-200",
   };
   const labels: Record<string, string> = {
-    pendente: "Pendente", aprovado: "Aprovado", rejeitado: "Rejeitado",
+    pendente: "Pendente", aprovado: "Deferido", rejeitado: "Indeferido",
   };
   return (
     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${map[status] ?? "bg-muted text-muted-foreground"}`}>
@@ -233,13 +233,13 @@ export default function DashboardPage() {
           color="bg-amber-50"
         />
         <SummaryCard
-          label="Aprovados"
+          label="Deferidos"
           value={counts.approved}
           icon={<CheckCircle className="w-5 h-5 text-green-600" />}
           color="bg-green-50"
         />
         <SummaryCard
-          label="Rejeitados"
+          label="Indeferidos"
           value={counts.rejected}
           icon={<XCircle className="w-5 h-5 text-red-500" />}
           color="bg-red-50"
@@ -320,8 +320,8 @@ export default function DashboardPage() {
               >
                 <option value="">Todos</option>
                 <option value="pendente">Pendente</option>
-                <option value="aprovado">Aprovado</option>
-                <option value="rejeitado">Rejeitado</option>
+                <option value="aprovado">Deferido</option>
+                <option value="rejeitado">Indeferido</option>
               </select>
             </div>
 
