@@ -96,8 +96,8 @@ export function resolveUploadPath(relativePath: string): string {
 // ─── Verificação de duplicidade ───────────────────────────────────────────────
 
 /**
- * Verifica se já existe uma submissão para o mesmo formulário
- * com o mesmo CPF. Retorna true se houver duplicata.
+ * Verifica se já existe uma submissão com o mesmo CPF
+ * em qualquer formulário. Retorna true se houver duplicata.
  */
 export function hasDuplicateCpf(formId: number, cpfValue: string): boolean {
   const db = getDb();
@@ -107,11 +107,10 @@ export function hasDuplicateCpf(formId: number, cpfValue: string): boolean {
   const row = db.prepare(`
     SELECT 1 FROM submission_data sd
     JOIN submissions s ON s.id = sd.submission_id
-    WHERE s.form_id = ?
-      AND sd.field_name = 'cpf'
+    WHERE sd.field_name = 'cpf'
       AND REPLACE(REPLACE(REPLACE(sd.value_text, '.', ''), '-', ''), ' ', '') = ?
     LIMIT 1
-  `).get(formId, normalized);
+  `).get(normalized);
 
   return !!row;
 }
@@ -325,6 +324,35 @@ export function updateSubmissionStatus(
     .prepare("UPDATE submissions SET status = ? WHERE id = ?")
     .run(status, id);
   return result.changes > 0;
+}
+
+// ─── Atualização de dados da submissão ────────────────────────────────────────
+
+export function updateSubmissionData(
+  submissionId: number,
+  updates: { id: number; value_text: string }[]
+): boolean {
+  const db = getDb();
+
+  // Verifica se a submissão existe
+  const submission = db.prepare("SELECT id FROM submissions WHERE id = ?").get(submissionId);
+  if (!submission) return false;
+
+  const stmt = db.prepare(
+    "UPDATE submission_data SET value_text = ? WHERE id = ? AND submission_id = ?"
+  );
+
+  db.exec("BEGIN");
+  try {
+    for (const u of updates) {
+      stmt.run(u.value_text, u.id, submissionId);
+    }
+    db.exec("COMMIT");
+    return true;
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
 }
 
 // ─── Exclusão ────────────────────────────────────────────────────────────────

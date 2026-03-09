@@ -23,6 +23,7 @@ import {
   countSubmissionsByForm,
   getSubmissionById,
   updateSubmissionStatus,
+  updateSubmissionData,
   deleteSubmission,
   resolveUploadPath,
   VALID_STATUSES,
@@ -345,6 +346,34 @@ export async function adminRoutes(app: FastifyInstance) {
       if (!ok) return reply.status(404).send({ error: "Not Found", message: "Submissão não encontrada." });
 
       return reply.send({ message: "Status atualizado com sucesso." });
+    }
+  );
+
+  const updateSubmissionDataSchema = z.object({
+    updates: z.array(
+      z.object({
+        id: z.number().int().positive(),
+        value_text: z.string().max(10_000),
+      })
+    ).min(1).max(50),
+  });
+
+  /** PUT /api/admin/submissions/:id/data — edita dados de campos da inscrição */
+  app.put(
+    "/submissions/:id/data",
+    async (request: FastifyRequest<{ Params: { id: string } }>, reply) => {
+      const id = parseId(request.params.id);
+      if (!id) return reply.status(400).send({ error: "Bad Request", message: "ID inválido." });
+
+      const parsed = updateSubmissionDataSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: "Validation Error", message: parsed.error.errors[0].message });
+      }
+
+      const ok = updateSubmissionData(id, parsed.data.updates);
+      if (!ok) return reply.status(404).send({ error: "Not Found", message: "Submissão não encontrada." });
+
+      return reply.send({ message: "Dados atualizados com sucesso." });
     }
   );
 

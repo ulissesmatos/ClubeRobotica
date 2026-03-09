@@ -13,12 +13,16 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  Pencil,
+  Save,
+  X,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import {
   apiGetSubmission,
   apiUpdateStatus,
   apiDeleteSubmission,
+  apiUpdateSubmissionData,
   fetchUploadAsBlob,
   type SubmissionDetail,
   type SubmissionDataRow,
@@ -263,6 +267,12 @@ export default function SubmissionDetailPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [deleting,   setDeleting]   = useState(false);
 
+  // Editing state
+  const [editing,     setEditing]     = useState(false);
+  const [editValues,  setEditValues]  = useState<Record<number, string>>({});
+  const [editSaving,  setEditSaving]  = useState(false);
+  const [editSaved,   setEditSaved]   = useState(false);
+
   const load = useCallback(() => {
     if (!accessToken || !id) return;
     setLoading(true);
@@ -304,6 +314,49 @@ export default function SubmissionDetailPage() {
     } catch {
       setDeleting(false);
       setShowDelete(false);
+    }
+  }
+
+  function startEditing() {
+    if (!submission) return;
+    const vals: Record<number, string> = {};
+    for (const d of submission.data) {
+      if (d.value_file_path === null) {
+        vals[d.id] = d.value_text ?? "";
+      }
+    }
+    setEditValues(vals);
+    setEditing(true);
+  }
+
+  function cancelEditing() {
+    setEditing(false);
+    setEditValues({});
+  }
+
+  async function saveEditing() {
+    if (!accessToken || !id || !submission) return;
+    const updates: { id: number; value_text: string }[] = [];
+    for (const d of submission.data) {
+      if (d.value_file_path !== null) continue;
+      const newVal = editValues[d.id];
+      if (newVal !== undefined && newVal !== (d.value_text ?? "")) {
+        updates.push({ id: d.id, value_text: newVal });
+      }
+    }
+    if (updates.length === 0) { cancelEditing(); return; }
+
+    setEditSaving(true);
+    try {
+      await apiUpdateSubmissionData(accessToken, Number(id), updates);
+      setEditing(false);
+      setEditSaved(true);
+      setTimeout(() => setEditSaved(false), 2000);
+      load(); // Recarrega os dados
+    } catch {
+      // keep editing open on error
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -403,7 +456,42 @@ export default function SubmissionDetailPage() {
 
       {/* Field data */}
       <div className="bg-white rounded-2xl border border-border shadow-sm p-6">
-        <h2 className="font-bold text-foreground text-base mb-5">Dados da inscrição</h2>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="font-bold text-foreground text-base">Dados da inscrição</h2>
+          <div className="flex items-center gap-2">
+            {editSaved && (
+              <span className="flex items-center gap-1 text-xs text-green-600">
+                <CheckCircle className="w-3.5 h-3.5" /> Salvo
+              </span>
+            )}
+            {editing ? (
+              <>
+                <button
+                  onClick={cancelEditing}
+                  disabled={editSaving}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg px-3 py-1.5 hover:bg-muted transition-colors disabled:opacity-50"
+                >
+                  <X className="w-3.5 h-3.5" /> Cancelar
+                </button>
+                <button
+                  onClick={saveEditing}
+                  disabled={editSaving}
+                  className="flex items-center gap-1.5 text-sm bg-primary text-primary-foreground font-semibold rounded-lg px-3 py-1.5 hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {editSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  Salvar
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={startEditing}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary border border-border rounded-lg px-3 py-1.5 hover:bg-primary/5 transition-colors"
+              >
+                <Pencil className="w-3.5 h-3.5" /> Editar dados
+              </button>
+            )}
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
           {submission.data
@@ -413,9 +501,18 @@ export default function SubmissionDetailPage() {
                 <dt className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
                   {d.field_label}
                 </dt>
-                <dd className="text-sm text-foreground break-words">
-                  {d.value_text ?? <span className="text-muted-foreground italic">Não preenchido</span>}
-                </dd>
+                {editing ? (
+                  <input
+                    type="text"
+                    value={editValues[d.id] ?? ""}
+                    onChange={(e) => setEditValues((prev) => ({ ...prev, [d.id]: e.target.value }))}
+                    className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:border-primary transition-colors"
+                  />
+                ) : (
+                  <dd className="text-sm text-foreground break-words">
+                    {d.value_text ?? <span className="text-muted-foreground italic">Não preenchido</span>}
+                  </dd>
+                )}
               </div>
             ))}
         </div>

@@ -182,6 +182,19 @@ export async function apiDeleteSubmission(
   if (!res.ok) throw new Error("Erro ao excluir submissão.");
 }
 
+export async function apiUpdateSubmissionData(
+  token: string,
+  id: number,
+  updates: { id: number; value_text: string }[]
+): Promise<void> {
+  const res = await fetch(`/api/admin/submissions/${id}/data`, {
+    method: "PUT",
+    headers: { ...buildAuthHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify({ updates }),
+  });
+  if (!res.ok) throw new Error("Erro ao atualizar dados da inscrição.");
+}
+
 /** Busca um arquivo com autenticação e retorna uma object URL de blob */
 export async function fetchUploadAsBlob(
   token: string,
