@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Instagram, Phone, MapPin, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import logosCodomSemecti from "@/assets/codó_e_semecti.webp";
 
 const WHATSAPP_NUMBER = "559998881234";
 const WHATSAPP_MESSAGE =
@@ -64,6 +65,17 @@ const ContactSection = () => {
 
         {/* Bottom bar */}
         <div className="border-t border-navy-foreground/20 pt-6 text-center">
+          {/* Logos realizacao */}
+          <div className="flex flex-col items-center gap-1.5 mb-5">
+            <span className="text-navy-foreground/40 text-xs font-semibold uppercase tracking-widest">Realização</span>
+            <div className="bg-white/95 rounded-xl px-4 py-2 shadow-sm">
+              <img
+                src={logosCodomSemecti}
+                alt="Prefeitura de Codó e SEMECTI"
+                className="h-9 w-auto object-contain"
+              />
+            </div>
+          </div>
           <p className="text-navy-foreground/45 text-sm flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 leading-relaxed">
             <span>© 2026 Clubinho de Robótica</span>
             <span>— Feito com</span>
