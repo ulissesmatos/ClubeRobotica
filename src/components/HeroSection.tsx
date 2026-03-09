@@ -100,9 +100,9 @@ const HeroSection = () => {
           </div>
         </motion.div>
 
-        {/* Hero image */}
+        {/* Hero image + logos */}
         <motion.div
-          className="flex-1 flex justify-center"
+          className="flex-1 flex flex-col items-center gap-5 justify-center"
           initial={{ opacity: 0, scale: 0.88 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.65, delay: 0.15, ease: "easeOut" }}
@@ -113,6 +113,15 @@ const HeroSection = () => {
               src={heroImage}
               alt="Crianças aprendendo robótica"
               className="relative w-full max-w-[480px] mx-auto rounded-3xl shadow-2xl border-4 border-primary-foreground/20 object-cover"
+            />
+          </div>
+
+          {/* Logos realizacao */}
+          <div className="flex justify-center mt-2">
+            <img
+              src={logosCodomSemecti}
+              alt="Prefeitura de Codó e SEMECTI"
+              className="h-14 w-auto object-contain brightness-0 invert opacity-75"
             />
           </div>
         </motion.div>
