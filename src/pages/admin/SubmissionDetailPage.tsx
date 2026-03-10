@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams, useNavigate, Link, useLocation } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ArrowLeft,
-  Bot,
-  LogOut,
   Loader2,
   AlertCircle,
   Trash2,
@@ -28,6 +26,8 @@ import {
   type SubmissionDataRow,
   type SubmissionStatus,
 } from "@/api/admin";
+
+import { AdminLayout } from "./AdminLayout";
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
@@ -193,62 +193,6 @@ function DeleteModal({
   );
 }
 
-// ─── AdminLayout ──────────────────────────────────────────────────────────────
-
-function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { admin, logout } = useAuth();
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
-
-  const navLink = (to: string, label: string, matchPrefixes: string[]) => {
-    const isActive = matchPrefixes.some((p) => pathname.startsWith(p));
-    return (
-      <Link
-        to={to}
-        className={`text-sm transition-colors ${
-          isActive
-            ? "text-white font-semibold border-b border-white/60 pb-0.5"
-            : "text-white/80 hover:text-white"
-        }`}
-      >
-        {label}
-      </Link>
-    );
-  };
-
-  async function handleLogout() {
-    await logout();
-    navigate("/admin/login", { replace: true });
-  }
-
-  return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-[hsl(var(--navy))] text-white px-6 py-4 flex items-center justify-between shadow-md">
-        <div className="flex items-center gap-3">
-          <Bot className="w-6 h-6 text-secondary" />
-          <span className="font-bold text-base">Painel Admin</span>
-          <span className="text-white/40 hidden sm:inline">·</span>
-          <span className="text-white/70 text-sm hidden sm:inline">Programa de Robótica</span>
-        </div>
-        <nav className="flex items-center gap-4">
-          {navLink("/admin/dashboard", "Inscrições", ["/admin/dashboard", "/admin/submissions"])}
-          {navLink("/admin/forms", "Turmas", ["/admin/forms"])}
-          <span className="text-white/30">|</span>
-          <span className="text-sm text-white/70 hidden sm:inline">{admin?.email}</span>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 text-sm text-white/80 hover:text-white transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Sair</span>
-          </button>
-        </nav>
-      </header>
-      <main className="max-w-4xl mx-auto px-4 py-8">{children}</main>
-    </div>
-  );
-}
-
 // ─── SubmissionDetailPage ─────────────────────────────────────────────────────
 
 export default function SubmissionDetailPage() {
@@ -362,7 +306,7 @@ export default function SubmissionDetailPage() {
 
   if (loading) {
     return (
-      <AdminLayout>
+      <AdminLayout contentClassName="max-w-4xl mx-auto px-4 py-8">
         <div className="flex items-center justify-center py-24 gap-2 text-muted-foreground">
           <Loader2 className="w-6 h-6 animate-spin" />
           Carregando inscrição...
@@ -373,7 +317,7 @@ export default function SubmissionDetailPage() {
 
   if (error || !submission) {
     return (
-      <AdminLayout>
+      <AdminLayout contentClassName="max-w-4xl mx-auto px-4 py-8">
         <div className="flex flex-col items-center justify-center py-24 gap-4">
           <AlertCircle className="w-8 h-8 text-destructive" />
           <p className="text-destructive text-sm">{error || "Inscrição não encontrada."}</p>
@@ -390,7 +334,7 @@ export default function SubmissionDetailPage() {
   );
 
   return (
-    <AdminLayout>
+    <AdminLayout contentClassName="max-w-4xl mx-auto px-4 py-8">
       {showDelete && (
         <DeleteModal
           onConfirm={handleDelete}

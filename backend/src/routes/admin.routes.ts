@@ -29,6 +29,7 @@ import {
   VALID_STATUSES,
   SubmissionStatus,
 } from "../services/submissions.service";
+import { getSettings, updateSettings } from "../services/settings.service";
 
 // ─── Schemas Zod ─────────────────────────────────────────────────────────────
 
@@ -445,4 +446,33 @@ export async function adminRoutes(app: FastifyInstance) {
   // Mantido para compatibilidade com referências antigas no banco (:submissionId/:filename)
   // VALID_STATUSES exportado apenas para garantir que seja importado sem tree-shake warning
   void VALID_STATUSES;
+
+  // ─── Settings ────────────────────────────────────────────────────────────────
+
+  /** GET /api/admin/settings — retorna todas as configurações do site */
+  app.get("/settings", async () => {
+    return getSettings();
+  });
+
+  const settingsUpdateSchema = z.object({
+    whatsapp_number:           z.string().max(20).optional(),
+    whatsapp_message:          z.string().max(500).optional(),
+    whatsapp_floating_enabled: z.enum(["0", "1"]).optional(),
+    whatsapp_footer_enabled:   z.enum(["0", "1"]).optional(),
+    instagram_handle:          z.string().max(100).optional(),
+    instagram_enabled:         z.enum(["0", "1"]).optional(),
+    phone_display:             z.string().max(30).optional(),
+    phone_number:              z.string().max(20).optional(),
+    phone_enabled:             z.enum(["0", "1"]).optional(),
+  });
+
+  /** PUT /api/admin/settings — atualiza configurações do site */
+  app.put("/settings", async (request, reply) => {
+    const result = settingsUpdateSchema.safeParse(request.body);
+    if (!result.success) {
+      return reply.status(400).send({ error: "Dados inválidos.", details: result.error.flatten() });
+    }
+    updateSettings(result.data as Record<string, string>);
+    return getSettings();
+  });
 }

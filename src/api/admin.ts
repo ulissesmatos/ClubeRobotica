@@ -374,3 +374,39 @@ export async function apiReorderFields(
   });
   if (!res.ok) throw new Error("Erro ao reordenar campos.");
 }
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
+export interface SiteSettingsAdmin {
+  whatsapp_number: string;
+  whatsapp_message: string;
+  whatsapp_floating_enabled: string;
+  whatsapp_footer_enabled: string;
+  instagram_handle: string;
+  instagram_enabled: string;
+  phone_display: string;
+  phone_number: string;
+  phone_enabled: string;
+}
+
+export async function apiGetSettings(token: string): Promise<SiteSettingsAdmin> {
+  const res = await fetch("/api/admin/settings", {
+    headers: buildAuthHeaders(token),
+  });
+  if (!res.ok) throw new Error("Erro ao carregar configurações.");
+  return res.json();
+}
+
+export async function apiUpdateSettings(
+  token: string,
+  data: Partial<SiteSettingsAdmin>
+): Promise<SiteSettingsAdmin> {
+  const res = await fetch("/api/admin/settings", {
+    method: "PUT",
+    headers: { ...buildAuthHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error((json as { error?: string }).error ?? "Erro ao salvar configurações.");
+  return json as SiteSettingsAdmin;
+}

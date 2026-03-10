@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { AdminLayout } from "./AdminLayout";
 import {
   DndContext,
   closestCenter,
@@ -16,8 +17,6 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
-  Bot,
-  LogOut,
   Plus,
   GripVertical,
   Pencil,
@@ -37,62 +36,6 @@ import {
   apiDeleteForm,
   type FormRow,
 } from "@/api/admin";
-
-// ─── AdminLayout ──────────────────────────────────────────────────────────────
-
-function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { admin, logout } = useAuth();
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
-
-  const navLink = (to: string, label: string, matchPrefixes: string[]) => {
-    const isActive = matchPrefixes.some((p) => pathname.startsWith(p));
-    return (
-      <Link
-        to={to}
-        className={`text-sm transition-colors ${
-          isActive
-            ? "text-white font-semibold border-b border-white/60 pb-0.5"
-            : "text-white/80 hover:text-white"
-        }`}
-      >
-        {label}
-      </Link>
-    );
-  };
-
-  async function handleLogout() {
-    await logout();
-    navigate("/admin/login", { replace: true });
-  }
-
-  return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-[hsl(var(--navy))] text-white px-6 py-4 flex items-center justify-between shadow-md">
-        <div className="flex items-center gap-3">
-          <Bot className="w-6 h-6 text-secondary" />
-          <span className="font-bold text-base">Painel Admin</span>
-          <span className="text-white/40 hidden sm:inline">·</span>
-          <span className="text-white/70 text-sm hidden sm:inline">Programa de Robótica</span>
-        </div>
-        <nav className="flex items-center gap-4">
-          {navLink("/admin/dashboard", "Inscrições", ["/admin/dashboard", "/admin/submissions"])}
-          {navLink("/admin/forms", "Turmas", ["/admin/forms"])}
-          <span className="text-white/30">|</span>
-          <span className="text-sm text-white/70 hidden sm:inline">{admin?.email}</span>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 text-sm text-white/80 hover:text-white transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Sair</span>
-          </button>
-        </nav>
-      </header>
-      <main className="max-w-4xl mx-auto px-4 py-8">{children}</main>
-    </div>
-  );
-}
 
 // ─── SortableFormRow ──────────────────────────────────────────────────────────
 
@@ -303,7 +246,7 @@ export default function FormsPage() {
   }
 
   return (
-    <AdminLayout>
+    <AdminLayout contentClassName="max-w-4xl mx-auto px-4 py-8">
       {/* Delete confirmation modal */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">

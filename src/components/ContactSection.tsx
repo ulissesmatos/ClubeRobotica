@@ -2,12 +2,16 @@ import { motion } from "framer-motion";
 import { Instagram, Phone, MapPin, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logosCodomSemecti from "@/assets/codó_e_semecti.webp";
-
-const WHATSAPP_NUMBER = "559998881234";
-const WHATSAPP_MESSAGE =
-  "Olá! Tenho interesse no Clubinho de Robótica de Codó. Pode me dar mais informações?";
+import { useSettings } from "@/context/SettingsContext";
 
 const ContactSection = () => {
+  const settings = useSettings();
+  const waNumber = settings.whatsapp_number;
+  const waMessage = settings.whatsapp_message;
+  const showWaFooter = settings.whatsapp_footer_enabled === "1";
+  const showInstagram = settings.instagram_enabled === "1";
+  const showPhone = settings.phone_enabled === "1";
+
   return (
     <footer id="contato" className="bg-navy py-16">
       <div className="container mx-auto px-4">
@@ -28,22 +32,26 @@ const ContactSection = () => {
 
         {/* Contact links */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-6 text-navy-foreground/85 mb-8 flex-wrap">
-          <a
-            href="https://instagram.com/clubinhorobotica_codo"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 hover:text-secondary transition-colors font-semibold"
-          >
-            <Instagram className="w-5 h-5" />
-            @clubinhorobotica_codo
-          </a>
-          <a
-            href="tel:+559998881234"
-            className="flex items-center gap-2 hover:text-secondary transition-colors font-semibold"
-          >
-            <Phone className="w-5 h-5" />
-            (99) 98888-1234
-          </a>
+          {showInstagram && (
+            <a
+              href={`https://instagram.com/${settings.instagram_handle}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 hover:text-secondary transition-colors font-semibold"
+            >
+              <Instagram className="w-5 h-5" />
+              @{settings.instagram_handle}
+            </a>
+          )}
+          {showPhone && (
+            <a
+              href={`tel:+${settings.phone_number}`}
+              className="flex items-center gap-2 hover:text-secondary transition-colors font-semibold"
+            >
+              <Phone className="w-5 h-5" />
+              {settings.phone_display}
+            </a>
+          )}
           <span className="flex items-center gap-2 font-semibold">
             <MapPin className="w-5 h-5" />
             Codó, MA
@@ -51,17 +59,19 @@ const ContactSection = () => {
         </div>
 
         {/* WhatsApp CTA */}
-        <div className="flex justify-center mb-12">
-          <a
-            href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Button className="bg-green-500 hover:bg-green-600 text-white font-bold px-8 h-12 rounded-full text-base shadow-lg">
-              Falar pelo WhatsApp
-            </Button>
-          </a>
-        </div>
+        {showWaFooter && (
+          <div className="flex justify-center mb-12">
+            <a
+              href={`https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button className="bg-green-500 hover:bg-green-600 text-white font-bold px-8 h-12 rounded-full text-base shadow-lg">
+                Falar pelo WhatsApp
+              </Button>
+            </a>
+          </div>
+        )}
 
         {/* Bottom bar */}
         <div className="border-t border-navy-foreground/20 pt-6 text-center">

@@ -9,7 +9,9 @@ import DashboardPage from "./pages/admin/DashboardPage.tsx";
 import SubmissionDetailPage from "./pages/admin/SubmissionDetailPage.tsx";
 import FormsPage from "./pages/admin/FormsPage.tsx";
 import FormEditorPage from "./pages/admin/FormEditorPage.tsx";
+import SettingsPage from "./pages/admin/SettingsPage.tsx";
 import { AuthProvider, useAuth } from "./context/AuthContext.tsx";
+import { SettingsProvider } from "./context/SettingsContext.tsx";
 import "./index.css";
 
 function PrivateRoute() {
@@ -29,6 +31,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
+        <SettingsProvider>
         <Routes>
           <Route path="/" element={<App />} />
           <Route path="/inscricao/:slug" element={<FormPage />} />
@@ -38,9 +41,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="submissions/:id" element={<SubmissionDetailPage />} />
             <Route path="forms" element={<FormsPage />} />
             <Route path="forms/:id" element={<FormEditorPage />} />
+            <Route path="settings" element={<SettingsPage />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
         </Routes>
+        </SettingsProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>

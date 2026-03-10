@@ -1,7 +1,15 @@
 import { FastifyInstance, FastifyRequest } from "fastify";
 import { getFormById, getFormBySlug, listActiveForms } from "../services/forms.service";
+import { getSettings } from "../services/settings.service";
 
 export async function formsRoutes(app: FastifyInstance) {
+  /**
+   * GET /api/settings
+   * Rota pública — retorna configurações de contato/redes sociais do site.
+   */
+  app.get("/settings", async (_request, reply) => {
+    return reply.status(200).send(getSettings());
+  });
   /**
    * GET /api/forms
    * Rota pública — retorna lista de formulários ativos (para TurmasSection).

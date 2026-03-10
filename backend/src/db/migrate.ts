@@ -120,6 +120,27 @@ const MIGRATIONS: { name: string; sql: string }[] = [
       ALTER TABLE forms ADD COLUMN card_subtitle TEXT;
     `,
   },
+  {
+    // Tabela de configurações do site (chave-valor).
+    // Armazena dados de contato e redes sociais editáveis pelo admin.
+    name: "006_add_settings",
+    sql: `
+      CREATE TABLE IF NOT EXISTS settings (
+        key   TEXT PRIMARY KEY,
+        value TEXT NOT NULL DEFAULT ''
+      );
+      INSERT OR IGNORE INTO settings (key, value) VALUES
+        ('whatsapp_number',          '559998881234'),
+        ('whatsapp_message',         'Olá! Tenho interesse no Clubinho de Robótica de Codó. Pode me dar mais informações?'),
+        ('whatsapp_floating_enabled','1'),
+        ('whatsapp_footer_enabled',  '1'),
+        ('instagram_handle',         'clubinhorobotica_codo'),
+        ('instagram_enabled',        '1'),
+        ('phone_display',            '(99) 98888-1234'),
+        ('phone_number',             '559998881234'),
+        ('phone_enabled',            '1');
+    `,
+  },
 ];
 
 export function runMigrations(): void {

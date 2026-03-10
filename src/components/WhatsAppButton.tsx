@@ -1,8 +1,5 @@
 import { motion } from "framer-motion";
-
-const WHATSAPP_NUMBER = "559998881234";
-const WHATSAPP_MESSAGE =
-  "Olá! Tenho interesse no Clubinho de Robótica de Codó. Pode me dar mais informações?";
+import { useSettings } from "@/context/SettingsContext";
 
 // Official WhatsApp logo SVG (SVG Repo)
 const WhatsAppIcon = () => (
@@ -38,9 +35,12 @@ const WhatsAppIcon = () => (
   </svg>
 );
 
-const WhatsAppButton = () => (
+const WhatsAppButton = () => {
+  const { whatsapp_number, whatsapp_message, whatsapp_floating_enabled } = useSettings();
+  if (whatsapp_floating_enabled !== "1") return null;
+  return (
   <motion.a
-    href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`}
+    href={`https://wa.me/${whatsapp_number}?text=${encodeURIComponent(whatsapp_message)}`}
     target="_blank"
     rel="noopener noreferrer"
     aria-label="Falar pelo WhatsApp"
@@ -53,6 +53,7 @@ const WhatsAppButton = () => (
   >
     <WhatsAppIcon />
   </motion.a>
-);
+  );
+};
 
 export default WhatsAppButton;
