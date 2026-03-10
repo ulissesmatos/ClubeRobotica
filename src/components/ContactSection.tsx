@@ -68,13 +68,13 @@ const ContactSection = () => {
           {/* Logos realizacao */}
           <div className="flex flex-col items-center gap-1.5 mb-5">
             <span className="text-navy-foreground/40 text-xs font-semibold uppercase tracking-widest">Realização</span>
-            <div className="bg-white/95 rounded-xl px-4 py-2 shadow-sm">
+            <a href="https://codo.ma.gov.br/" target="_blank" rel="noopener noreferrer" className="bg-white rounded-xl px-4 py-2 shadow-sm inline-block">
               <img
                 src={logosCodomSemecti}
                 alt="Prefeitura de Codó e SEMECTI"
                 className="h-9 w-auto object-contain"
               />
-            </div>
+            </a>
           </div>
           <p className="text-navy-foreground/45 text-sm flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 leading-relaxed">
             <span>© 2026 Clubinho de Robótica</span>
