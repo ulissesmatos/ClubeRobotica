@@ -50,6 +50,19 @@ export function isAllowedMime(mimetype: string): boolean {
 }
 
 /**
+ * Valida o conteúdo do arquivo pelos magic bytes.
+ * Garante que um arquivo declarado como PDF realmente começa com %PDF-.
+ * Isso evita que arquivos corrompidos ou renomeados sejam salvos e exibidos com erro.
+ */
+export function validateFileContent(buffer: Buffer, mimetype: string): boolean {
+  if (mimetype.toLowerCase() === "application/pdf") {
+    // PDFs válidos sempre começam com os bytes %PDF-
+    return buffer.length >= 5 && buffer.subarray(0, 5).toString("ascii") === "%PDF-";
+  }
+  return true;
+}
+
+/**
  * Salva um arquivo em /uploads/{ano}/{mes}/{uuid}/
  * Retorna o caminho RELATIVO ao UPLOAD_DIR (para salvar no banco).
  * Nunca usa o nome original do arquivo — usa UUID para evitar path traversal.

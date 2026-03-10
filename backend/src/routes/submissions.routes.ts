@@ -5,6 +5,7 @@ import {
   createSubmission,
   saveUploadedFile,
   isAllowedMime,
+  validateFileContent,
   hasDuplicateCpf,
   SubmissionField,
 } from "../services/submissions.service";
@@ -54,6 +55,15 @@ export async function submissionsRoutes(app: FastifyInstance) {
             }
 
             const buffer = await filePart.toBuffer();
+
+            // Valida magic bytes: rejeita arquivos cujo conteúdo não bate com o MIME declarado
+            if (!validateFileContent(buffer, filePart.mimetype)) {
+              return reply.status(400).send({
+                error: "Bad Request",
+                message: "O arquivo enviado parece estar corrompido ou não é um PDF válido. Verifique o arquivo e tente novamente.",
+              });
+            }
+
             uploadedFile = { buffer, mimetype: filePart.mimetype };
           } else {
             // Campo de texto — sanitiza o nome do campo (nunca usa raw)
