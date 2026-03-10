@@ -66,6 +66,19 @@ export async function fetchActiveForms(): Promise<ActiveForm[]> {
   return (data.forms ?? []) as ActiveForm[];
 }
 
+// ─── CPF check (public, no auth) ──────────────────────────────────────────────
+
+export async function checkCpf(
+  formId: number,
+  cpf: string
+): Promise<{ valid: boolean; duplicate: boolean }> {
+  const digits = cpf.replace(/\D/g, "");
+  if (digits.length !== 11) return { valid: false, duplicate: false };
+  const res = await fetch(`/api/forms/${formId}/check-cpf?cpf=${encodeURIComponent(digits)}`);
+  if (!res.ok) return { valid: false, duplicate: false };
+  return res.json() as Promise<{ valid: boolean; duplicate: boolean }>;
+}
+
 // ─── Submit via XHR (for upload progress events) ─────────────────────────────
 
 export function submitFormData(

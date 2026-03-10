@@ -6,6 +6,7 @@ import {
   saveUploadedFile,
   isAllowedMime,
   validateFileContent,
+  isValidCpf,
   hasDuplicateCpf,
   SubmissionField,
 } from "../services/submissions.service";
@@ -19,6 +20,33 @@ export async function submissionsRoutes(app: FastifyInstance) {
    * Recebe multipart/form-data com todos os campos + arquivo.
    * Rate limit: 3 submissões por IP por hora.
    */
+  /**
+   * GET /api/forms/:id/check-cpf?cpf=XXX
+   * Rota pública — verifica se o CPF é válido e se já existe inscrição.
+   * Usado para feedback em tempo real no formulário.
+   */
+  app.get(
+    "/forms/:id/check-cpf",
+    async (request: FastifyRequest<{ Params: { id: string }; Querystring: { cpf?: string } }>, reply) => {
+      const formId = parseInt(request.params.id, 10);
+      if (isNaN(formId)) {
+        return reply.status(400).send({ error: "Bad Request", message: "ID inválido." });
+      }
+
+      const cpf = (request.query as { cpf?: string }).cpf ?? "";
+      const digits = cpf.replace(/\D/g, "");
+
+      if (digits.length !== 11) {
+        return reply.status(200).send({ valid: false, duplicate: false });
+      }
+
+      const valid = isValidCpf(digits);
+      const duplicate = valid ? hasDuplicateCpf(formId, digits) : false;
+
+      return reply.status(200).send({ valid, duplicate });
+    }
+  );
+
   app.post(
     "/forms/:id/submit",
     { config: { rateLimit: SUBMIT_RATE_LIMIT } },
@@ -106,15 +134,23 @@ export async function submissionsRoutes(app: FastifyInstance) {
         });
       }
 
-      // Verifica duplicidade de CPF para este formulário
+      // Valida CPF (algoritmo) e verifica duplicidade
       const cpfField = form.fields.find((f) => f.type === "cpf");
       if (cpfField) {
         const cpfValue = textFields[cpfField.name];
-        if (cpfValue && hasDuplicateCpf(formId, cpfValue)) {
-          return reply.status(409).send({
-            error: "Conflict",
-            message: "Já existe uma inscrição com este CPF para esta turma.",
-          });
+        if (cpfValue) {
+          if (!isValidCpf(cpfValue)) {
+            return reply.status(422).send({
+              error: "Unprocessable Entity",
+              message: "O CPF informado é inválido.",
+            });
+          }
+          if (hasDuplicateCpf(formId, cpfValue)) {
+            return reply.status(409).send({
+              error: "Conflict",
+              message: "Já existe uma inscrição com este CPF para esta turma.",
+            });
+          }
         }
       }
 

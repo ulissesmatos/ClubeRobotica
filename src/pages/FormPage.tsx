@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { CheckCircle, AlertCircle, Upload, X, ChevronLeft, RefreshCw } from "lucide-react";
 import {
+  checkCpf,
   fetchForm,
   submitFormData,
   type ApiForm,
@@ -11,6 +12,19 @@ import {
 import { useFormAutoSave, type SavedValues } from "@/hooks/useFormAutoSave";
 
 // ─── Masks ────────────────────────────────────────────────────────────────────
+
+/** Valida CPF pelos dígitos verificadores (algoritmo Receita Federal). */
+function isValidCpfLocal(digits: string): boolean {
+  if (digits.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(digits)) return false;
+  for (let t = 9; t < 11; t++) {
+    let sum = 0;
+    for (let i = 0; i < t; i++) sum += Number(digits[i]) * (t + 1 - i);
+    const rem = (sum * 10) % 11;
+    if (Number(digits[t]) !== (rem === 10 ? 0 : rem)) return false;
+  }
+  return true;
+}
 
 function maskCpf(raw: string): string {
   const d = raw.replace(/\D/g, "").slice(0, 11);
@@ -46,6 +60,7 @@ function validateField(
   if (field.type === "cpf" && val !== "") {
     const digits = val.replace(/\D/g, "");
     if (digits.length !== 11) return "CPF inválido — deve ter 11 dígitos.";
+    if (!isValidCpfLocal(digits)) return "CPF inválido.";
   }
   return "";
 }
@@ -394,14 +409,34 @@ export default function FormPage() {
     [touched, fileEntry, form]
   );
 
+  const cpfCheckRef = useRef(0);
+
   const handleBlur = useCallback(
     (name: string) => {
       setTouched((prev) => ({ ...prev, [name]: true }));
-      if (form) {
-        const field = form.fields.find((f) => f.name === name);
-        if (field) {
-          const err = validateField(field, values, fileEntry);
-          setErrors((prev) => ({ ...prev, [name]: err }));
+      if (!form) return;
+
+      const field = form.fields.find((f) => f.name === name);
+      if (!field) return;
+
+      const err = validateField(field, values, fileEntry);
+      setErrors((prev) => ({ ...prev, [name]: err }));
+
+      // Verificação assíncrona de CPF duplicado
+      if (field.type === "cpf" && !err) {
+        const currentValue = values[name] ?? "";
+        const digits = currentValue.replace(/\D/g, "");
+        if (digits.length === 11) {
+          const seq = ++cpfCheckRef.current;
+          checkCpf(form.id, digits).then((result) => {
+            // Ignora se houve outra verificação mais recente
+            if (seq !== cpfCheckRef.current) return;
+            if (!result.valid) {
+              setErrors((prev) => ({ ...prev, [name]: "CPF inválido." }));
+            } else if (result.duplicate) {
+              setErrors((prev) => ({ ...prev, [name]: "Já existe uma inscrição com este CPF." }));
+            }
+          }).catch(() => { /* silencioso — a validação no submit ainda protege */ });
         }
       }
     },
