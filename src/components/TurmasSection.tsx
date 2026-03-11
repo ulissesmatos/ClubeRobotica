@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { fetchActiveForms, ActiveForm } from "@/api/forms";
+import { FileText, CalendarDays } from "lucide-react";
 
 function deriveCardConfig(title: string) {
   const isFII = /fundamental ii/i.test(title);
@@ -76,6 +77,24 @@ const TurmasSection = () => {
             Temos turmas para todos os níveis! Escolha a ideal e comece sua
             jornada na robótica.
           </p>
+
+          {/* Info bar: edital + datas */}
+          <div className="mt-6 inline-flex flex-col sm:flex-row items-center gap-4 bg-primary/5 border border-primary/20 rounded-2xl px-6 py-3">
+            <div className="flex items-center gap-2 text-foreground text-sm font-semibold">
+              <CalendarDays className="w-4 h-4 text-primary" />
+              <span>Inscrições: <strong>16/03 a 23/03</strong></span>
+            </div>
+            <span className="hidden sm:block text-border">|</span>
+            <a
+              href="https://administracaopublica.com.br/downloads/other?n=08409569000117&p=anexo&a=anexo_dff9557b-85db-49f6-9c25-a5d2fbfe7cfe.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-primary hover:text-primary/80 text-sm font-bold transition-colors"
+            >
+              <FileText className="w-4 h-4" />
+              Ler o Edital Completo
+            </a>
+          </div>
         </motion.div>
 
         {loading ? (

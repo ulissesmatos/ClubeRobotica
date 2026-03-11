@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, FileText, CalendarDays } from "lucide-react";
 import heroImage from "@/assets/hero-robotics.avif";
 import logosCodomSemecti from "@/assets/codó_e_semecti.webp";
 
@@ -98,6 +98,28 @@ const HeroSection = () => {
               Falar Conosco
             </Button>
           </div>
+
+          {/* Edital + datas */}
+          <motion.div
+            className="mt-8 flex flex-col sm:flex-row items-center gap-4 justify-center md:justify-start"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <a
+              href="https://administracaopublica.com.br/downloads/other?n=08409569000117&p=anexo&a=anexo_dff9557b-85db-49f6-9c25-a5d2fbfe7cfe.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-primary-foreground/15 hover:bg-primary-foreground/25 text-primary-foreground px-5 py-2.5 rounded-full text-sm font-bold transition-colors backdrop-blur-sm"
+            >
+              <FileText className="w-4 h-4" />
+              📄 Ler o Edital
+            </a>
+            <div className="flex items-center gap-2 text-primary-foreground/80 text-sm font-semibold">
+              <CalendarDays className="w-4 h-4" />
+              <span>Inscrições: 16/03 a 23/03</span>
+            </div>
+          </motion.div>
         </motion.div>
 
         {/* Hero image + logos */}
