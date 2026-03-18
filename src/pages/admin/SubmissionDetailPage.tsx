@@ -14,6 +14,7 @@ import {
   Pencil,
   Save,
   X,
+  Upload,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -21,6 +22,7 @@ import {
   apiUpdateStatus,
   apiDeleteSubmission,
   apiUpdateSubmissionData,
+  apiReplaceSubmissionFile,
   fetchUploadAsBlob,
   type SubmissionDetail,
   type SubmissionDataRow,
@@ -55,7 +57,19 @@ function StatusBadge({ status }: { status: string }) {
 
 // ─── File viewer ──────────────────────────────────────────────────────────────
 
-function FileViewer({ token, filePath }: { token: string; filePath: string }) {
+const ALLOWED_EDIT_TYPES = [
+  "application/pdf", "image/jpeg", "image/png", "image/webp", "image/gif", "image/avif",
+];
+
+interface FileViewerProps {
+  token: string;
+  filePath: string;
+  editing?: boolean;
+  onFileReplace?: (file: File) => void;
+  pendingFile?: File | null;
+}
+
+function FileViewer({ token, filePath, editing, onFileReplace, pendingFile }: FileViewerProps) {
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(false);
@@ -116,6 +130,27 @@ function FileViewer({ token, filePath }: { token: string; filePath: string }) {
 
   return (
     <div className="space-y-3">
+      {/* Preview do arquivo pendente (novo arquivo selecionado para troca) */}
+      {editing && pendingFile && (
+        <div className="border-2 border-primary/30 bg-primary/5 rounded-lg p-3 space-y-2">
+          <p className="text-xs font-semibold text-primary">Novo arquivo selecionado:</p>
+          {pendingFile.type.startsWith("image/") ? (
+            <img
+              src={URL.createObjectURL(pendingFile)}
+              alt="Preview"
+              className="max-w-full max-h-48 rounded-lg object-contain"
+            />
+          ) : (
+            <div className="flex items-center gap-2 text-sm text-foreground">
+              <FileText className="w-4 h-4" />
+              <span className="font-mono">{pendingFile.name}</span>
+              <span className="text-muted-foreground">({(pendingFile.size / 1024 / 1024).toFixed(1)} MB)</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Arquivo atual */}
       {isImage && (
         <img
           src={objectUrl}
@@ -136,14 +171,39 @@ function FileViewer({ token, filePath }: { token: string; filePath: string }) {
           <span className="font-mono">{filename}</span>
         </div>
       )}
-      <a
-        href={objectUrl}
-        download={filename}
-        className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
-      >
-        <Download className="w-4 h-4" />
-        Baixar arquivo
-      </a>
+
+      <div className="flex items-center gap-4">
+        <a
+          href={objectUrl}
+          download={filename}
+          className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+        >
+          <Download className="w-4 h-4" />
+          Baixar arquivo
+        </a>
+
+        {editing && onFileReplace && (
+          <label className="inline-flex items-center gap-2 text-sm text-primary hover:underline cursor-pointer">
+            <Upload className="w-4 h-4" />
+            {pendingFile ? "Trocar novamente" : "Substituir arquivo"}
+            <input
+              type="file"
+              className="hidden"
+              accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.avif"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                if (!ALLOWED_EDIT_TYPES.includes(f.type)) {
+                  alert("Tipo não permitido. Use PDF ou imagem.");
+                  return;
+                }
+                onFileReplace(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        )}
+      </div>
     </div>
   );
 }
@@ -216,6 +276,7 @@ export default function SubmissionDetailPage() {
   const [editValues,  setEditValues]  = useState<Record<number, string>>({});
   const [editSaving,  setEditSaving]  = useState(false);
   const [editSaved,   setEditSaved]   = useState(false);
+  const [pendingFile, setPendingFile]  = useState<File | null>(null);
 
   const load = useCallback(() => {
     if (!accessToken || !id) return;
@@ -270,16 +331,20 @@ export default function SubmissionDetailPage() {
       }
     }
     setEditValues(vals);
+    setPendingFile(null);
     setEditing(true);
   }
 
   function cancelEditing() {
     setEditing(false);
     setEditValues({});
+    setPendingFile(null);
   }
 
   async function saveEditing() {
     if (!accessToken || !id || !submission) return;
+
+    // Text field updates
     const updates: { id: number; value_text: string }[] = [];
     for (const d of submission.data) {
       if (d.value_file_path !== null) continue;
@@ -288,15 +353,28 @@ export default function SubmissionDetailPage() {
         updates.push({ id: d.id, value_text: newVal });
       }
     }
-    if (updates.length === 0) { cancelEditing(); return; }
+
+    const hasTextChanges = updates.length > 0;
+    const hasFileChange = !!pendingFile;
+
+    if (!hasTextChanges && !hasFileChange) { cancelEditing(); return; }
 
     setEditSaving(true);
     try {
-      await apiUpdateSubmissionData(accessToken, Number(id), updates);
+      if (hasTextChanges) {
+        await apiUpdateSubmissionData(accessToken, Number(id), updates);
+      }
+      if (hasFileChange && pendingFile) {
+        const fileField = submission.data.find((d) => d.value_file_path !== null);
+        if (fileField) {
+          await apiReplaceSubmissionFile(accessToken, Number(id), fileField.id, pendingFile);
+        }
+      }
       setEditing(false);
+      setPendingFile(null);
       setEditSaved(true);
       setTimeout(() => setEditSaved(false), 2000);
-      load(); // Recarrega os dados
+      load();
     } catch {
       // keep editing open on error
     } finally {
@@ -474,7 +552,13 @@ export default function SubmissionDetailPage() {
               )}
               {fileField.field_label}
             </h3>
-            <FileViewer token={accessToken} filePath={fileField.value_file_path!} />
+            <FileViewer
+              token={accessToken}
+              filePath={fileField.value_file_path!}
+              editing={editing}
+              onFileReplace={setPendingFile}
+              pendingFile={pendingFile}
+            />
           </div>
         )}
       </div>

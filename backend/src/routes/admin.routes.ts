@@ -24,8 +24,12 @@ import {
   getSubmissionById,
   updateSubmissionStatus,
   updateSubmissionData,
+  updateSubmissionFile,
   deleteSubmission,
   resolveUploadPath,
+  isAllowedMime,
+  validateFileContent,
+  saveUploadedFile,
   VALID_STATUSES,
   SubmissionStatus,
 } from "../services/submissions.service";
@@ -375,6 +379,61 @@ export async function adminRoutes(app: FastifyInstance) {
       if (!ok) return reply.status(404).send({ error: "Not Found", message: "Submissão não encontrada." });
 
       return reply.send({ message: "Dados atualizados com sucesso." });
+    }
+  );
+
+  /**
+   * PUT /api/admin/submissions/:id/file
+   * Substitui o arquivo de um campo file da submissão (multipart/form-data).
+   * Espera: campo "dataRowId" (número) e campo file com o novo arquivo.
+   */
+  app.put(
+    "/submissions/:id/file",
+    async (request: FastifyRequest<{ Params: { id: string } }>, reply) => {
+      const submissionId = parseId(request.params.id);
+      if (!submissionId) return reply.status(400).send({ error: "Bad Request", message: "ID inválido." });
+
+      let dataRowId: number | null = null;
+      let uploadedFile: { buffer: Buffer; mimetype: string } | null = null;
+
+      try {
+        const parts = request.parts();
+        for await (const part of parts) {
+          if (part.type === "file") {
+            const filePart = part as import("@fastify/multipart").MultipartFile;
+            if (!isAllowedMime(filePart.mimetype)) {
+              await filePart.toBuffer().catch(() => null);
+              return reply.status(400).send({ error: "Bad Request", message: "Tipo de arquivo não permitido." });
+            }
+            const buffer = await filePart.toBuffer();
+            if (!validateFileContent(buffer, filePart.mimetype)) {
+              return reply.status(400).send({ error: "Bad Request", message: "Arquivo corrompido ou inválido." });
+            }
+            uploadedFile = { buffer, mimetype: filePart.mimetype };
+          } else {
+            if (part.fieldname === "dataRowId") {
+              const val = (part as { value: string }).value;
+              dataRowId = parseInt(val, 10);
+            }
+          }
+        }
+      } catch {
+        return reply.status(400).send({ error: "Bad Request", message: "Erro ao processar o envio." });
+      }
+
+      if (!dataRowId || isNaN(dataRowId)) {
+        return reply.status(400).send({ error: "Bad Request", message: "dataRowId é obrigatório." });
+      }
+      if (!uploadedFile) {
+        return reply.status(400).send({ error: "Bad Request", message: "Nenhum arquivo enviado." });
+      }
+
+      const ok = updateSubmissionFile(submissionId, dataRowId, uploadedFile.buffer, uploadedFile.mimetype);
+      if (!ok) {
+        return reply.status(404).send({ error: "Not Found", message: "Campo de arquivo não encontrado." });
+      }
+
+      return reply.send({ message: "Arquivo atualizado com sucesso." });
     }
   );
 

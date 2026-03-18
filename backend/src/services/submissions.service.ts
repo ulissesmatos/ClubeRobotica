@@ -389,6 +389,46 @@ export function updateSubmissionData(
   }
 }
 
+/**
+ * Substitui o arquivo de um campo file de uma submissão.
+ * Salva o novo arquivo, atualiza o banco e remove o antigo do disco.
+ */
+export function updateSubmissionFile(
+  submissionId: number,
+  dataRowId: number,
+  fileBuffer: Buffer,
+  mimetype: string
+): boolean {
+  const db = getDb();
+
+  const row = db.prepare(
+    "SELECT id, value_file_path FROM submission_data WHERE id = ? AND submission_id = ?"
+  ).get(dataRowId, submissionId) as { id: number; value_file_path: string | null } | undefined;
+
+  if (!row || row.value_file_path === null) return false;
+
+  const oldRelativePath = row.value_file_path;
+  const newRelativePath = saveUploadedFile(fileBuffer, mimetype);
+
+  db.prepare(
+    "UPDATE submission_data SET value_file_path = ? WHERE id = ? AND submission_id = ?"
+  ).run(newRelativePath, dataRowId, submissionId);
+
+  // Remove arquivo antigo do disco
+  try {
+    const oldAbsolute = resolveUploadPath(oldRelativePath);
+    if (fs.existsSync(oldAbsolute)) {
+      fs.unlinkSync(oldAbsolute);
+      // Tenta remover o diretório UUID se ficou vazio
+      const parentDir = path.dirname(oldAbsolute);
+      const remaining = fs.readdirSync(parentDir);
+      if (remaining.length === 0) fs.rmdirSync(parentDir);
+    }
+  } catch { /* best-effort cleanup */ }
+
+  return true;
+}
+
 // ─── Exclusão ────────────────────────────────────────────────────────────────
 
 export function deleteSubmission(id: number): {

@@ -195,6 +195,28 @@ export async function apiUpdateSubmissionData(
   if (!res.ok) throw new Error("Erro ao atualizar dados da inscrição.");
 }
 
+/** Substitui o arquivo de um campo file de uma submissão */
+export async function apiReplaceSubmissionFile(
+  token: string,
+  submissionId: number,
+  dataRowId: number,
+  file: File
+): Promise<void> {
+  const form = new FormData();
+  form.append("dataRowId", String(dataRowId));
+  form.append("file", file);
+
+  const res = await fetch(`/api/admin/submissions/${submissionId}/file`, {
+    method: "PUT",
+    headers: buildAuthHeaders(token),
+    body: form,
+  });
+  if (!res.ok) {
+    const json = await res.json().catch(() => null);
+    throw new Error(json?.message ?? "Erro ao substituir arquivo.");
+  }
+}
+
 /** Busca um arquivo com autenticação e retorna uma object URL de blob */
 export async function fetchUploadAsBlob(
   token: string,
