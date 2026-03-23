@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Save, Loader2, CheckCircle, Phone, Instagram, MessageCircle } from "lucide-react";
+import { Save, Loader2, CheckCircle, Phone, Instagram, MessageCircle, ShieldOff } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { apiGetSettings, apiUpdateSettings, type SiteSettingsAdmin } from "@/api/admin";
+import { apiGetSettings, apiUpdateSettings, apiResetRateLimit, type SiteSettingsAdmin } from "@/api/admin";
 import { AdminLayout } from "./AdminLayout";
 
 const DEFAULT: SiteSettingsAdmin = {
@@ -54,6 +54,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [resettingRateLimit, setResettingRateLimit] = useState(false);
+  const [rateLimitReset, setRateLimitReset] = useState(false);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -82,6 +84,21 @@ export default function SettingsPage() {
       setError(err instanceof Error ? err.message : "Erro ao salvar.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleResetRateLimit() {
+    if (!accessToken) return;
+    setResettingRateLimit(true);
+    setError("");
+    try {
+      await apiResetRateLimit(accessToken);
+      setRateLimitReset(true);
+      setTimeout(() => setRateLimitReset(false), 4000);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Erro ao resetar rate limit.");
+    } finally {
+      setResettingRateLimit(false);
     }
   }
 
@@ -232,6 +249,41 @@ export default function SettingsPage() {
             checked={form.phone_enabled === "1"}
             onChange={(v) => set("phone_enabled", v ? "1" : "0")}
           />
+        </section>
+
+        {/* ── Rate Limit ── */}
+        <section className="bg-white rounded-2xl border border-border shadow-sm p-6 space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <ShieldOff className="w-5 h-5 text-orange-500" />
+            <h2 className="font-semibold text-foreground">Rate Limit</h2>
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            Se os formulários estiverem retornando erro <strong>"Muitas requisições"</strong> (429),
+            use o botão abaixo para liberar todos os bloqueios imediatamente.
+          </p>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleResetRateLimit}
+              disabled={resettingRateLimit}
+              className="flex items-center gap-2 bg-orange-500 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-orange-600 transition-colors disabled:opacity-60"
+            >
+              {resettingRateLimit ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <ShieldOff className="w-4 h-4" />
+              )}
+              {resettingRateLimit ? "Resetando..." : "Resetar Rate Limit"}
+            </button>
+            {rateLimitReset && (
+              <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
+                <CheckCircle className="w-4 h-4" />
+                Rate limit liberado!
+              </span>
+            )}
+          </div>
         </section>
 
         {/* ── Save button ── */}

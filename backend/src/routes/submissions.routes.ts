@@ -11,8 +11,8 @@ import {
   SubmissionField,
 } from "../services/submissions.service";
 
-// Limite de rate para submissões: 3 por IP por hora
-const SUBMIT_RATE_LIMIT = { max: 3, timeWindow: "1 hour" };
+// Limite de rate para submissões: 30 por IP por hora
+const SUBMIT_RATE_LIMIT = { max: 30, timeWindow: "1 hour" };
 
 export async function submissionsRoutes(app: FastifyInstance) {
   /**

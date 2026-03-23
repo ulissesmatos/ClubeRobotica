@@ -36,8 +36,14 @@ if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
 const JWT_SECRET_SAFE = JWT_SECRET as string;
 const JWT_REFRESH_SECRET_SAFE = JWT_REFRESH_SECRET as string;
 
+// ─── Rate limit state (resettable via admin) ────────────────────────────────
+export const rateLimitState = { epoch: 0 };
+
 // ─── App factory ─────────────────────────────────────────────────────────────
 const app = Fastify({
+  // Trust proxy headers (X-Forwarded-For / X-Real-IP) so rate limiting
+  // and logging use the real client IP instead of the nginx container IP.
+  trustProxy: true,
   // Logging always enabled; structured JSON in production, human-readable in dev.
   // Level "warn" in production silences noisy per-request lines while keeping
   // security events (logged at "warn" / "error" level) visible.
@@ -72,8 +78,9 @@ async function bootstrap() {
   // ── Rate limiting (global default) ──
   await app.register(rateLimit, {
     global: true,
-    max: 120,
+    max: 600,
     timeWindow: "1 minute",
+    keyGenerator: (request) => `${rateLimitState.epoch}:${request.ip}`,
     errorResponseBuilder: () => ({
       statusCode: 429,
       error: "Too Many Requests",
