@@ -65,7 +65,7 @@ const HeroSection = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            🤖 Inscrições Abertas 2026!
+            🤖 Inscrições Prorrogadas — 24 a 30/03!
           </motion.span>
 
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-primary-foreground leading-tight mb-3 font-display">
@@ -107,7 +107,7 @@ const HeroSection = () => {
             transition={{ delay: 0.5 }}
           >
             <a
-              href="https://administracaopublica.com.br/downloads/other?n=08409569000117&p=anexo&a=anexo_dff9557b-85db-49f6-9c25-a5d2fbfe7cfe.pdf"
+              href="https://codo.ma.gov.br/seletivo-17"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 bg-primary-foreground/15 hover:bg-primary-foreground/25 text-primary-foreground px-5 py-2.5 rounded-full text-sm font-bold transition-colors backdrop-blur-sm"
@@ -117,7 +117,7 @@ const HeroSection = () => {
             </a>
             <div className="flex items-center gap-2 text-primary-foreground/80 text-sm font-semibold">
               <CalendarDays className="w-4 h-4" />
-              <span>Inscrições: 16/03 a 23/03</span>
+              <span>Inscrições: 24/03 a 30/03</span>
             </div>
           </motion.div>
         </motion.div>

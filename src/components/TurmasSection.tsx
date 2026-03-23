@@ -71,22 +71,21 @@ const TurmasSection = () => {
             🎓 Nossas Turmas
           </span>
           <h2 className="text-3xl md:text-4xl font-extrabold text-foreground mb-3 font-display">
-            Escolha sua Turma e Inscreva-se
+            Inscrições Prorrogadas — Escolha sua Turma!
           </h2>
           <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-            Temos turmas para todos os níveis! Escolha a ideal e comece sua
-            jornada na robótica.
+            As inscrições foram prorrogadas! Escolha a turma ideal e garanta sua vaga até 30 de março.
           </p>
 
           {/* Info bar: edital + datas */}
           <div className="mt-6 inline-flex flex-col sm:flex-row items-center gap-4 bg-primary/5 border border-primary/20 rounded-2xl px-6 py-3">
             <div className="flex items-center gap-2 text-foreground text-sm font-semibold">
               <CalendarDays className="w-4 h-4 text-primary" />
-              <span>Inscrições: <strong>16/03 a 23/03</strong></span>
+              <span>Inscrições: <strong>24/03 a 30/03</strong></span>
             </div>
             <span className="hidden sm:block text-border">|</span>
             <a
-              href="https://administracaopublica.com.br/downloads/other?n=08409569000117&p=anexo&a=anexo_dff9557b-85db-49f6-9c25-a5d2fbfe7cfe.pdf"
+              href="https://codo.ma.gov.br/seletivo-17"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-primary hover:text-primary/80 text-sm font-bold transition-colors"
