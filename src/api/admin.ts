@@ -419,14 +419,6 @@ export async function apiGetSettings(token: string): Promise<SiteSettingsAdmin> 
   return res.json();
 }
 
-export async function apiResetRateLimit(token: string): Promise<void> {
-  const res = await fetch("/api/admin/rate-limit/reset", {
-    method: "POST",
-    headers: buildAuthHeaders(token),
-  });
-  if (!res.ok) throw new Error("Erro ao resetar rate limit.");
-}
-
 export async function apiUpdateSettings(
   token: string,
   data: Partial<SiteSettingsAdmin>

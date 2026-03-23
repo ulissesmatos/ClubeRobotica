@@ -36,9 +36,6 @@ if (!JWT_SECRET || !JWT_REFRESH_SECRET) {
 const JWT_SECRET_SAFE = JWT_SECRET as string;
 const JWT_REFRESH_SECRET_SAFE = JWT_REFRESH_SECRET as string;
 
-// ─── Rate limit state (resettable via admin) ────────────────────────────────
-export const rateLimitState = { epoch: 0 };
-
 // ─── App factory ─────────────────────────────────────────────────────────────
 const app = Fastify({
   // Trust proxy headers (X-Forwarded-For / X-Real-IP) so rate limiting
@@ -80,7 +77,6 @@ async function bootstrap() {
     global: true,
     max: 600,
     timeWindow: "1 minute",
-    keyGenerator: (request) => `${rateLimitState.epoch}:${request.ip}`,
     errorResponseBuilder: () => ({
       statusCode: 429,
       error: "Too Many Requests",

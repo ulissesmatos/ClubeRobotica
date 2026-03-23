@@ -34,7 +34,6 @@ import {
   SubmissionStatus,
 } from "../services/submissions.service";
 import { getSettings, updateSettings } from "../services/settings.service";
-import { rateLimitState } from "../server";
 
 // ─── Schemas Zod ─────────────────────────────────────────────────────────────
 
@@ -101,16 +100,6 @@ function formatField(f: FormFieldRow) {
 
 export async function adminRoutes(app: FastifyInstance) {
   app.addHook("onRequest", verifyJWT);
-
-  // ══════════════════════════════════════════════════════════════════════
-  // RATE LIMIT
-  // ══════════════════════════════════════════════════════════════════════
-
-  /** POST /api/admin/rate-limit/reset — reseta todos os contadores de rate limit */
-  app.post("/rate-limit/reset", async (_request, reply) => {
-    rateLimitState.epoch++;
-    return reply.status(200).send({ message: "Rate limit resetado com sucesso." });
-  });
 
   // ══════════════════════════════════════════════════════════════════════════
   // FORMS
