@@ -10,6 +10,7 @@ import SubmissionDetailPage from "./pages/admin/SubmissionDetailPage.tsx";
 import FormsPage from "./pages/admin/FormsPage.tsx";
 import FormEditorPage from "./pages/admin/FormEditorPage.tsx";
 import SettingsPage from "./pages/admin/SettingsPage.tsx";
+import SchoolsPage from "./pages/admin/SchoolsPage.tsx";
 import { AuthProvider, useAuth } from "./context/AuthContext.tsx";
 import { SettingsProvider } from "./context/SettingsContext.tsx";
 import "./index.css";
@@ -42,6 +43,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="forms" element={<FormsPage />} />
             <Route path="forms/:id" element={<FormEditorPage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="schools" element={<SchoolsPage />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
         </Routes>

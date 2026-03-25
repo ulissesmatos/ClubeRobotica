@@ -121,6 +121,29 @@ const MIGRATIONS: { name: string; sql: string }[] = [
     `,
   },
   {
+    // Tabela de grupos de escolas para normalização de nomes livres.
+    // school_groups: nome canônico definido pelo admin.
+    // school_aliases: cada variação do nome (raw_name) mapeada a um grupo.
+    name: "007_school_groups",
+    sql: `
+      CREATE TABLE IF NOT EXISTS school_groups (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        canonical_name TEXT    NOT NULL UNIQUE,
+        created_at     TEXT    NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS school_aliases (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        group_id   INTEGER NOT NULL REFERENCES school_groups(id) ON DELETE CASCADE,
+        raw_name   TEXT    NOT NULL UNIQUE COLLATE NOCASE,
+        created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_school_aliases_group ON school_aliases(group_id);
+      CREATE INDEX IF NOT EXISTS idx_school_aliases_raw   ON school_aliases(raw_name COLLATE NOCASE);
+    `,
+  },
+  {
     // Tabela de configurações do site (chave-valor).
     // Armazena dados de contato e redes sociais editáveis pelo admin.
     name: "006_add_settings",

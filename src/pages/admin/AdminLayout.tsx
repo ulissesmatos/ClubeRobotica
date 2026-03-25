@@ -15,6 +15,11 @@ const NAV_ITEMS = [
     prefixes: ["/admin/forms"],
   },
   {
+    to: "/admin/schools",
+    label: "Escolas",
+    prefixes: ["/admin/schools"],
+  },
+  {
     to: "/admin/settings",
     label: "Configurações",
     prefixes: ["/admin/settings"],

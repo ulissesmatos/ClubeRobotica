@@ -283,13 +283,14 @@ export async function adminRoutes(app: FastifyInstance) {
   // ══════════════════════════════════════════════════════════════════════════
 
   const listSubmissionsQuerySchema = z.object({
-    formId:   z.coerce.number().int().positive().optional(),
-    status:   z.enum(["pendente", "aprovado", "rejeitado"]).optional(),
-    search:   z.string().max(200).optional(),
-    dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    dateTo:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-    page:     z.coerce.number().int().positive().default(1),
-    pageSize: z.coerce.number().int().min(1).max(100).default(20),
+    formId:        z.coerce.number().int().positive().optional(),
+    status:        z.enum(["pendente", "aprovado", "rejeitado"]).optional(),
+    search:        z.string().max(200).optional(),
+    dateFrom:      z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    dateTo:        z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    schoolGroupId: z.coerce.number().int().positive().optional(),
+    page:          z.coerce.number().int().positive().default(1),
+    pageSize:      z.coerce.number().int().min(1).max(100).default(20),
   });
 
   /** GET /api/admin/submissions/counts-by-form */

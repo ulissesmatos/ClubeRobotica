@@ -128,16 +128,18 @@ export async function apiListSubmissions(
     search?: string;
     dateFrom?: string;
     dateTo?: string;
+    schoolGroupId?: number;
   } = {}
 ): Promise<PaginatedSubmissions> {
   const qs = new URLSearchParams();
-  if (params.page)     qs.set("page",     String(params.page));
-  if (params.pageSize) qs.set("pageSize", String(params.pageSize));
-  if (params.formId)   qs.set("formId",   String(params.formId));
-  if (params.status)   qs.set("status",   params.status);
-  if (params.search)   qs.set("search",   params.search);
-  if (params.dateFrom) qs.set("dateFrom", params.dateFrom);
-  if (params.dateTo)   qs.set("dateTo",   params.dateTo);
+  if (params.page)          qs.set("page",          String(params.page));
+  if (params.pageSize)      qs.set("pageSize",      String(params.pageSize));
+  if (params.formId)        qs.set("formId",        String(params.formId));
+  if (params.status)        qs.set("status",        params.status);
+  if (params.search)        qs.set("search",        params.search);
+  if (params.dateFrom)      qs.set("dateFrom",      params.dateFrom);
+  if (params.dateTo)        qs.set("dateTo",        params.dateTo);
+  if (params.schoolGroupId) qs.set("schoolGroupId", String(params.schoolGroupId));
 
   const res = await fetch(`/api/admin/submissions?${qs}`, {
     headers: buildAuthHeaders(token),
@@ -432,3 +434,82 @@ export async function apiUpdateSettings(
   if (!res.ok) throw new Error((json as { error?: string }).error ?? "Erro ao salvar configurações.");
   return json as SiteSettingsAdmin;
 }
+
+// ─── Schools ──────────────────────────────────────────────────────────────────
+
+export interface RawSchoolName {
+  raw_name: string;
+  count: number;
+  group_id: number | null;
+  canonical_name: string | null;
+}
+
+export interface SchoolGroup {
+  id: number;
+  canonical_name: string;
+  created_at: string;
+  aliases: string[];
+  count: number;
+}
+
+export async function apiListRawSchoolNames(token: string): Promise<RawSchoolName[]> {
+  const res = await fetch("/api/admin/schools/raw", { headers: buildAuthHeaders(token) });
+  if (!res.ok) throw new Error("Erro ao carregar nomes de escolas.");
+  const json = await res.json();
+  return (json as { names: RawSchoolName[] }).names;
+}
+
+export async function apiListSchoolGroups(token: string): Promise<SchoolGroup[]> {
+  const res = await fetch("/api/admin/schools/groups", { headers: buildAuthHeaders(token) });
+  if (!res.ok) throw new Error("Erro ao carregar grupos.");
+  const json = await res.json();
+  return (json as { groups: SchoolGroup[] }).groups;
+}
+
+export async function apiCreateSchoolGroup(
+  token: string,
+  canonical_name: string,
+  aliases: string[]
+): Promise<SchoolGroup> {
+  const res = await fetch("/api/admin/schools/groups", {
+    method: "POST",
+    headers: { ...buildAuthHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify({ canonical_name, aliases }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error((json as { message?: string }).message ?? "Erro ao criar grupo.");
+  return (json as { group: SchoolGroup }).group;
+}
+
+export async function apiUpdateSchoolGroup(
+  token: string,
+  groupId: number,
+  data: { canonical_name?: string; add_aliases?: string[] }
+): Promise<SchoolGroup> {
+  const res = await fetch(`/api/admin/schools/groups/${groupId}`, {
+    method: "PUT",
+    headers: { ...buildAuthHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error((json as { message?: string }).message ?? "Erro ao atualizar grupo.");
+  return (json as { group: SchoolGroup }).group;
+}
+
+export async function apiDeleteSchoolGroup(token: string, groupId: number): Promise<void> {
+  const res = await fetch(`/api/admin/schools/groups/${groupId}`, {
+    method: "DELETE",
+    headers: buildAuthHeaders(token),
+  });
+  if (!res.ok) throw new Error("Erro ao excluir grupo.");
+}
+
+export async function apiRemoveSchoolAlias(token: string, raw_name: string): Promise<void> {
+  const res = await fetch("/api/admin/schools/aliases", {
+    method: "DELETE",
+    headers: { ...buildAuthHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify({ raw_name }),
+  });
+  if (!res.ok) throw new Error("Erro ao remover alias.");
+}
+

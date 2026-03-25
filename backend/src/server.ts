@@ -13,6 +13,7 @@ import { authRoutes } from "./routes/auth.routes";
 import { formsRoutes } from "./routes/forms.routes";
 import { submissionsRoutes } from "./routes/submissions.routes";
 import { adminRoutes } from "./routes/admin.routes";
+import { schoolsRoutes } from "./routes/schools.routes";
 import { runMigrations } from "./db/migrate";
 
 // ─── Env validation ──────────────────────────────────────────────────────────
@@ -109,6 +110,7 @@ async function bootstrap() {
   await app.register(formsRoutes, { prefix: "/api" });
   await app.register(submissionsRoutes, { prefix: "/api" });
   await app.register(adminRoutes, { prefix: "/api/admin" });
+  await app.register(schoolsRoutes, { prefix: "/api/admin/schools" });
 
   // ── Global error handler ──
   app.setErrorHandler((error: FastifyError, _request, reply) => {

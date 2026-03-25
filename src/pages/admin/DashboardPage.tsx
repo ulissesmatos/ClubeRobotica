@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { AdminLayout } from "./AdminLayout";
 import {
   Search,
@@ -24,6 +24,7 @@ import {
   type FormRow,
   type SubmissionStatus,
 } from "@/api/admin";
+import { apiListSchoolGroups, type SchoolGroup } from "@/api/admin";
 
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
@@ -63,6 +64,23 @@ function SummaryCard({
   );
 }
 
+// ─── Pagination helper ───────────────────────────────────────────────────────
+
+function getPaginationPages(current: number, total: number): (number | "…")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const set = new Set(
+    [1, current - 1, current, current + 1, total].filter((n) => n >= 1 && n <= total)
+  );
+  const sorted = Array.from(set).sort((a, b) => a - b);
+  const result: (number | "…")[] = [];
+  for (const n of sorted) {
+    const last = result[result.length - 1];
+    if (typeof last === "number" && n - last > 1) result.push("…");
+    result.push(n);
+  }
+  return result;
+}
+
 // ─── DashboardPage ────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 20;
@@ -73,21 +91,26 @@ export default function DashboardPage() {
   // Data
   const [data, setData]   = useState<PaginatedSubmissions | null>(null);
   const [forms, setForms] = useState<FormRow[]>([]);
+  const [groups, setGroups] = useState<SchoolGroup[]>([]);
   const [counts, setCounts] = useState({ pending: 0, approved: 0, rejected: 0 });
 
-  // Filters
-  const [search,    setSearch]    = useState("");
-  const [searchInput, setSearchInput] = useState("");
-  const [formId,    setFormId]    = useState<number | undefined>();
-  const [status,    setStatus]    = useState<SubmissionStatus | undefined>();
-  const [dateFrom,  setDateFrom]  = useState("");
-  const [dateTo,    setDateTo]    = useState("");
-  const [page,      setPage]      = useState(1);
+  // Filters — estado persistido na URL para que o botão Voltar restaure a página/filtros
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page          = Math.max(1, Number(searchParams.get("page")) || 1);
+  const formId        = searchParams.get("formId") ? Number(searchParams.get("formId")) : undefined;
+  const status        = (searchParams.get("status") as SubmissionStatus) || undefined;
+  const search        = searchParams.get("search") || "";
+  const dateFrom      = searchParams.get("dateFrom") || "";
+  const dateTo        = searchParams.get("dateTo") || "";
+  const schoolGroupId = searchParams.get("schoolGroupId") ? Number(searchParams.get("schoolGroupId")) : undefined;
+  const [searchInput, setSearchInput] = useState(search);
 
   // UI
   const [loading, setLoading]   = useState(true);
   const [error,   setError]     = useState("");
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(
+    !!(searchParams.get("formId") || searchParams.get("status") || searchParams.get("dateFrom") || searchParams.get("dateTo") || searchParams.get("schoolGroupId"))
+  );
 
   // Form submission counts for filter labels
   const [formCounts, setFormCounts] = useState<Record<number, number>>({});
@@ -96,6 +119,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!accessToken) return;
     apiListForms(accessToken).then(setForms).catch(() => {});
+    apiListSchoolGroups(accessToken).then(setGroups).catch(() => {});
     apiCountByForm(accessToken)
       .then((counts) => {
         const map: Record<number, number> = {};
@@ -132,29 +156,41 @@ export default function DashboardPage() {
       search: search || undefined,
       dateFrom: dateFrom || undefined,
       dateTo:   dateTo   || undefined,
+      schoolGroupId,
     })
       .then(setData)
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [accessToken, page, formId, status, search, dateFrom, dateTo]);
+  }, [accessToken, page, formId, status, search, dateFrom, dateTo, schoolGroupId]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Reset page when filters change
-  useEffect(() => { setPage(1); }, [formId, status, search, dateFrom, dateTo]);
+  function updateParams(updates: Record<string, string | undefined>, resetPage = true) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      for (const [k, v] of Object.entries(updates)) {
+        if (v) next.set(k, v); else next.delete(k);
+      }
+      if (resetPage) next.set("page", "1");
+      return next;
+    }, { replace: true });
+  }
+
+  function goToPage(p: number) {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set("page", String(p));
+      return next;
+    }, { replace: true });
+  }
 
   function applySearch() {
-    setSearch(searchInput.trim());
+    updateParams({ search: searchInput.trim() || undefined });
   }
 
   function clearFilters() {
     setSearchInput("");
-    setSearch("");
-    setFormId(undefined);
-    setStatus(undefined);
-    setDateFrom("");
-    setDateTo("");
-    setPage(1);
+    setSearchParams({}, { replace: true });
   }
 
   const total = data?.total ?? 0;
@@ -239,13 +275,27 @@ export default function DashboardPage() {
 
         {/* Expandable filters */}
         {showFilters && (
-          <div className="px-5 pb-4 pt-3 border-b border-border bg-muted/30 flex flex-wrap gap-4 items-end">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Formulário </label>
+          <div className="px-5 pb-3 pt-3 border-b border-border bg-muted/30 flex flex-wrap gap-3 items-end">
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Escola</label>
+              <select
+                value={schoolGroupId ?? ""}
+                onChange={(e) => updateParams({ schoolGroupId: e.target.value || undefined })}
+                className="w-40 px-2 py-1.5 border border-border rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="">Todas</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>{g.canonical_name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Formulário</label>
               <select
                 value={formId ?? ""}
-                onChange={(e) => setFormId(e.target.value ? Number(e.target.value) : undefined)}
-                className="px-3 py-2 border border-border rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                onChange={(e) => updateParams({ formId: e.target.value || undefined })}
+                className="w-40 px-2 py-1.5 border border-border rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20"
               >
                 <option value="">Todos</option>
                 {forms.map((f) => (
@@ -254,12 +304,12 @@ export default function DashboardPage() {
               </select>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Status </label>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Status</label>
               <select
                 value={status ?? ""}
-                onChange={(e) => setStatus((e.target.value as SubmissionStatus) || undefined)}
-                className="px-3 py-2 border border-border rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                onChange={(e) => updateParams({ status: e.target.value || undefined })}
+                className="w-32 px-2 py-1.5 border border-border rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20"
               >
                 <option value="">Todos</option>
                 <option value="pendente">Pendente</option>
@@ -268,23 +318,23 @@ export default function DashboardPage() {
               </select>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">De </label>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">De</label>
               <input
                 type="date"
                 value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="px-3 py-2 border border-border rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                onChange={(e) => updateParams({ dateFrom: e.target.value || undefined })}
+                className="w-36 px-2 py-1.5 border border-border rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Até </label>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-muted-foreground">Até</label>
               <input
                 type="date"
                 value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="px-3 py-2 border border-border rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                onChange={(e) => updateParams({ dateTo: e.target.value || undefined })}
+                className="w-36 px-2 py-1.5 border border-border rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
 
@@ -369,17 +419,31 @@ export default function DashboardPage() {
             </span>
             <div className="flex items-center gap-1">
               <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                onClick={() => goToPage(page - 1)}
                 disabled={page === 1}
                 className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="px-2 font-medium text-foreground">
-                {page} / {data.totalPages}
-              </span>
+              {getPaginationPages(page, data.totalPages).map((p, i) =>
+                p === "…" ? (
+                  <span key={`ell-${i}`} className="px-1 select-none text-muted-foreground">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => goToPage(p)}
+                    className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                      p === page
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted text-foreground"
+                    }`}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
               <button
-                onClick={() => setPage((p) => Math.min(data.totalPages, p + 1))}
+                onClick={() => goToPage(page + 1)}
                 disabled={page === data.totalPages}
                 className="p-1.5 rounded-lg hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >

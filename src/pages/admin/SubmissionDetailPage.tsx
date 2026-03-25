@@ -422,13 +422,13 @@ export default function SubmissionDetailPage() {
       )}
 
       {/* Back link */}
-      <Link
-        to="/admin/dashboard"
+      <button
+        onClick={() => navigate(-1)}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6"
       >
         <ArrowLeft className="w-4 h-4" />
         Voltar para inscrições
-      </Link>
+      </button>
 
       {/* Header card */}
       <div className="bg-white rounded-2xl border border-border shadow-sm p-6 mb-6">

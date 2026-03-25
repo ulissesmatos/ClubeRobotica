@@ -219,6 +219,7 @@ export interface ListSubmissionsOptions {
   search?: string;        // busca em value_text (nome/CPF)
   dateFrom?: string;      // ISO date string
   dateTo?: string;
+  schoolGroupId?: number; // filtra pelo grupo de escola mapeado
   page: number;
   pageSize: number;
 }
@@ -271,6 +272,16 @@ export function listSubmissions(opts: ListSubmissionsOptions): {
         AND sd.value_text LIKE ?
     ))`);
     params.push(`%${opts.search}%`, `%${opts.search}%`);
+  }
+  if (opts.schoolGroupId) {
+    conditions.push(`EXISTS (
+      SELECT 1 FROM submission_data sd2
+      JOIN school_aliases sa ON sa.raw_name = sd2.value_text COLLATE NOCASE
+      WHERE sd2.submission_id = s.id
+        AND sd2.field_name LIKE '%escola%'
+        AND sa.group_id = ?
+    )`);
+    params.push(opts.schoolGroupId);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
