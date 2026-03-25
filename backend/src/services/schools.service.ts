@@ -29,12 +29,12 @@ export function listRawSchoolNames(): RawSchoolName[] {
   return db
     .prepare(
       `SELECT
-         sd.value_text                AS raw_name,
+         TRIM(sd.value_text)           AS raw_name,
          COUNT(*)                     AS count,
          sa.group_id                  AS group_id,
          sg.canonical_name            AS canonical_name
        FROM submission_data sd
-       LEFT JOIN school_aliases sa ON sa.raw_name = sd.value_text COLLATE NOCASE
+       LEFT JOIN school_aliases sa ON LOWER(TRIM(sa.raw_name)) = LOWER(TRIM(sd.value_text))
        LEFT JOIN school_groups  sg ON sg.id = sa.group_id
        WHERE sd.field_name LIKE '%escola%'
          AND sd.value_text IS NOT NULL
@@ -64,7 +64,7 @@ export function listSchoolGroups(): SchoolGroup[] {
   const countStmt = db.prepare(
     `SELECT COUNT(*) AS total
      FROM submission_data sd
-     JOIN school_aliases sa ON sa.raw_name = sd.value_text COLLATE NOCASE
+     JOIN school_aliases sa ON LOWER(TRIM(sa.raw_name)) = LOWER(TRIM(sd.value_text))
      WHERE sa.group_id = ?
        AND sd.field_name LIKE '%escola%'`
   );
@@ -99,6 +99,8 @@ export function createSchoolGroup(
   try {
     const info = insertGroup.run(canonicalName.trim());
     groupId = info.lastInsertRowid as number;
+    // Sempre incluir o nome canônico como alias (garante contagem correta)
+    insertAlias.run(groupId, canonicalName.trim());
     for (const alias of aliases) {
       const trimmed = alias.trim();
       if (trimmed) insertAlias.run(groupId, trimmed);
@@ -123,7 +125,7 @@ export function createSchoolGroup(
     .prepare(
       `SELECT COUNT(*) AS total
        FROM submission_data sd
-       JOIN school_aliases sa ON sa.raw_name = sd.value_text COLLATE NOCASE
+       JOIN school_aliases sa ON LOWER(TRIM(sa.raw_name)) = LOWER(TRIM(sd.value_text))
        WHERE sa.group_id = ?
          AND sd.field_name LIKE '%escola%'`
     )
@@ -182,7 +184,7 @@ export function updateSchoolGroup(
     .prepare(
       `SELECT COUNT(*) AS total
        FROM submission_data sd
-       JOIN school_aliases sa ON sa.raw_name = sd.value_text COLLATE NOCASE
+       JOIN school_aliases sa ON LOWER(TRIM(sa.raw_name)) = LOWER(TRIM(sd.value_text))
        WHERE sa.group_id = ?
          AND sd.field_name LIKE '%escola%'`
     )

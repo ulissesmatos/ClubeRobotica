@@ -276,7 +276,7 @@ export function listSubmissions(opts: ListSubmissionsOptions): {
   if (opts.schoolGroupId) {
     conditions.push(`EXISTS (
       SELECT 1 FROM submission_data sd2
-      JOIN school_aliases sa ON sa.raw_name = sd2.value_text COLLATE NOCASE
+      JOIN school_aliases sa ON LOWER(TRIM(sa.raw_name)) = LOWER(TRIM(sd2.value_text))
       WHERE sd2.submission_id = s.id
         AND sd2.field_name LIKE '%escola%'
         AND sa.group_id = ?
