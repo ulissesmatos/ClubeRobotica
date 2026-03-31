@@ -10,6 +10,7 @@ export interface SiteSettings {
   phone_display: string;
   phone_number: string;
   phone_enabled: string;
+  enrollments_status: string;
 }
 
 const ALLOWED_KEYS = new Set<string>([
@@ -22,6 +23,7 @@ const ALLOWED_KEYS = new Set<string>([
   "phone_display",
   "phone_number",
   "phone_enabled",
+  "enrollments_status",
 ]);
 
 export function getSettings(): SiteSettings {

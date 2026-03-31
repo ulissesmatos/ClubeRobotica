@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Save, Loader2, CheckCircle, Phone, Instagram, MessageCircle } from "lucide-react";
+import { Save, Loader2, CheckCircle, Phone, Instagram, MessageCircle, CalendarDays } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { apiGetSettings, apiUpdateSettings, type SiteSettingsAdmin } from "@/api/admin";
 import { AdminLayout } from "./AdminLayout";
@@ -14,6 +14,7 @@ const DEFAULT: SiteSettingsAdmin = {
   phone_display: "",
   phone_number: "",
   phone_enabled: "1",
+  enrollments_status: "open",
 };
 
 function Toggle({
@@ -112,6 +113,37 @@ export default function SettingsPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {/* ── Inscrições ── */}
+        <section className="bg-white rounded-2xl border border-border shadow-sm p-6 space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <CalendarDays className="w-5 h-5 text-primary" />
+            <h2 className="font-semibold text-foreground">Status das Inscrições</h2>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Controla o status exibido na landing page em todos os textos de inscrições.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            {([
+              { value: "open",     label: "Abertas",     color: "bg-green-500 hover:bg-green-600" },
+              { value: "extended", label: "Prorrogadas",  color: "bg-amber-500 hover:bg-amber-600" },
+              { value: "closed",   label: "Encerradas",   color: "bg-red-500 hover:bg-red-600" },
+            ] as const).map(({ value, label, color }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => set("enrollments_status", value)}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors border-2 ${
+                  form.enrollments_status === value
+                    ? `${color} text-white border-transparent shadow-md`
+                    : "bg-muted text-muted-foreground border-border hover:border-primary/40"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </section>
+
         {/* ── WhatsApp ── */}
         <section className="bg-white rounded-2xl border border-border shadow-sm p-6 space-y-4">
           <div className="flex items-center gap-2 mb-2">

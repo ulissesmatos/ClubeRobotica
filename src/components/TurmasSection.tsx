@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { fetchActiveForms, ActiveForm } from "@/api/forms";
 import { FileText, CalendarDays } from "lucide-react";
+import { useSettings } from "@/context/SettingsContext";
 
 function deriveCardConfig(title: string) {
   const isFII = /fundamental ii/i.test(title);
@@ -50,6 +51,9 @@ const cardVariants = {
 const TurmasSection = () => {
   const [forms, setForms] = useState<ActiveForm[]>([]);
   const [loading, setLoading] = useState(true);
+  const { enrollments_status } = useSettings();
+  const isClosed = enrollments_status === "closed";
+  const isExtended = enrollments_status === "extended";
 
   useEffect(() => {
     fetchActiveForms()
@@ -71,29 +75,39 @@ const TurmasSection = () => {
             🎓 Nossas Turmas
           </span>
           <h2 className="text-3xl md:text-4xl font-extrabold text-foreground mb-3 font-display">
-            Inscrições Prorrogadas — Escolha sua Turma!
+            {isClosed
+              ? "Inscrições Encerradas"
+              : isExtended
+              ? "Inscrições Prorrogadas — Escolha sua Turma!"
+              : "Escolha sua Turma!"}
           </h2>
           <p className="text-muted-foreground text-lg max-w-xl mx-auto">
-            As inscrições foram prorrogadas! Escolha a turma ideal e garanta sua vaga até 30 de março.
+            {isClosed
+              ? "As inscrições foram encerradas. Fique atento para a próxima edição!"
+              : isExtended
+              ? "As inscrições foram prorrogadas! Escolha a turma ideal e garanta sua vaga até 30 de março."
+              : "Vagas limitadas! Garanta sua vaga e escolha a turma ideal."}
           </p>
 
           {/* Info bar: edital + datas */}
-          <div className="mt-6 inline-flex flex-col sm:flex-row items-center gap-4 bg-primary/5 border border-primary/20 rounded-2xl px-6 py-3">
-            <div className="flex items-center gap-2 text-foreground text-sm font-semibold">
-              <CalendarDays className="w-4 h-4 text-primary" />
-              <span>Inscrições: <strong>24/03 a 30/03</strong></span>
+          {!isClosed && (
+            <div className="mt-6 inline-flex flex-col sm:flex-row items-center gap-4 bg-primary/5 border border-primary/20 rounded-2xl px-6 py-3">
+              <div className="flex items-center gap-2 text-foreground text-sm font-semibold">
+                <CalendarDays className="w-4 h-4 text-primary" />
+                <span>Inscrições: <strong>24/03 a 30/03</strong></span>
+              </div>
+              <span className="hidden sm:block text-border">|</span>
+              <a
+                href="https://codo.ma.gov.br/seletivo-17"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-primary hover:text-primary/80 text-sm font-bold transition-colors"
+              >
+                <FileText className="w-4 h-4" />
+                Ler o Edital Completo
+              </a>
             </div>
-            <span className="hidden sm:block text-border">|</span>
-            <a
-              href="https://codo.ma.gov.br/seletivo-17"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-primary hover:text-primary/80 text-sm font-bold transition-colors"
-            >
-              <FileText className="w-4 h-4" />
-              Ler o Edital Completo
-            </a>
-          </div>
+          )}
         </motion.div>
 
         {loading ? (
@@ -107,7 +121,7 @@ const TurmasSection = () => {
           </div>
         ) : forms.length === 0 ? (
           <p className="text-center text-muted-foreground text-lg">
-            Inscrições em breve. Fique ligado!
+            Novidades em breve!
           </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
@@ -141,9 +155,12 @@ const TurmasSection = () => {
                     <p className="text-sm text-muted-foreground mb-5 flex-1">
                       {description}
                     </p>
-                    <Link to={`/inscricao/${form.slug}`}>
-                      <Button className="w-full rounded-full font-bold text-sm">
-                        Inscrever-se
+                    <Link to={`/inscricao/${form.slug}`} aria-disabled={isClosed} tabIndex={isClosed ? -1 : undefined}>
+                      <Button
+                        className="w-full rounded-full font-bold text-sm"
+                        disabled={isClosed}
+                      >
+                        {isClosed ? "Encerrado" : "Inscrever-se"}
                       </Button>
                     </Link>
                   </div>

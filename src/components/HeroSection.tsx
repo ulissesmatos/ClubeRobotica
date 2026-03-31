@@ -3,8 +3,13 @@ import { Button } from "@/components/ui/button";
 import { ChevronDown, FileText, CalendarDays } from "lucide-react";
 import heroImage from "@/assets/hero-robotics.avif";
 import logosCodomSemecti from "@/assets/codó_e_semecti.webp";
+import { useSettings } from "@/context/SettingsContext";
 
 const HeroSection = () => {
+  const { enrollments_status } = useSettings();
+  const isClosed = enrollments_status === "closed";
+  const isExtended = enrollments_status === "extended";
+
   const scrollTo = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
 
@@ -60,12 +65,20 @@ const HeroSection = () => {
           transition={{ duration: 0.65, ease: "easeOut" }}
         >
           <motion.span
-            className="inline-block bg-secondary text-secondary-foreground px-5 py-1.5 rounded-full text-sm font-bold mb-5 shadow-lg"
+            className={`inline-block px-5 py-1.5 rounded-full text-sm font-bold mb-5 shadow-lg ${
+              isClosed
+                ? "bg-red-500/20 text-red-200"
+                : "bg-secondary text-secondary-foreground"
+            }`}
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            🤖 Inscrições Prorrogadas — 24 a 30/03!
+            {isClosed
+              ? "🔒 Inscrições Encerradas"
+              : isExtended
+              ? "🤖 Inscrições Prorrogadas — 24 a 30/03!"
+              : "🤖 Inscrições Abertas!"}
           </motion.span>
 
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-primary-foreground leading-tight mb-3 font-display">
@@ -115,10 +128,17 @@ const HeroSection = () => {
               <FileText className="w-4 h-4" />
               📄 Ler o Edital
             </a>
-            <div className="flex items-center gap-2 text-primary-foreground/80 text-sm font-semibold">
-              <CalendarDays className="w-4 h-4" />
-              <span>Inscrições: 24/03 a 30/03</span>
-            </div>
+            {isClosed ? (
+              <div className="flex items-center gap-2 text-red-300 text-sm font-semibold">
+                <CalendarDays className="w-4 h-4" />
+                <span>Inscrições encerradas em 30/03</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-primary-foreground/80 text-sm font-semibold">
+                <CalendarDays className="w-4 h-4" />
+                <span>Inscrições: 24/03 a 30/03</span>
+              </div>
+            )}
           </motion.div>
         </motion.div>
 

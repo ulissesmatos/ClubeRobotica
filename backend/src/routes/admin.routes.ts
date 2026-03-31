@@ -524,6 +524,7 @@ export async function adminRoutes(app: FastifyInstance) {
     phone_display:             z.string().max(30).optional(),
     phone_number:              z.string().max(20).optional(),
     phone_enabled:             z.enum(["0", "1"]).optional(),
+    enrollments_status:        z.enum(["open", "extended", "closed"]).optional(),
   });
 
   /** PUT /api/admin/settings — atualiza configurações do site */

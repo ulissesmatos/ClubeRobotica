@@ -8,6 +8,7 @@ export interface SiteSettings {
   phone_display: string;
   phone_number: string;
   phone_enabled: string;
+  enrollments_status: string;
 }
 
 export const DEFAULT_SETTINGS: SiteSettings = {
@@ -21,6 +22,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   phone_display: "(99) 98888-1234",
   phone_number: "559998881234",
   phone_enabled: "1",
+  enrollments_status: "open",
 };
 
 export async function fetchPublicSettings(): Promise<SiteSettings> {
