@@ -579,6 +579,8 @@ export async function adminRoutes(app: FastifyInstance) {
     phone_number:              z.string().max(20).optional(),
     phone_enabled:             z.enum(["0", "1"]).optional(),
     enrollments_status:        z.enum(["open", "extended", "closed"]).optional(),
+    enrollments_date_start:    z.string().max(10).optional(),
+    enrollments_date_end:      z.string().max(10).optional(),
   });
 
   /** PUT /api/admin/settings — atualiza configurações do site */

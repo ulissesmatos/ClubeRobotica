@@ -412,6 +412,8 @@ export interface SiteSettingsAdmin {
   phone_number: string;
   phone_enabled: string;
   enrollments_status: string;
+  enrollments_date_start: string;
+  enrollments_date_end: string;
 }
 
 export async function apiGetSettings(token: string): Promise<SiteSettingsAdmin> {

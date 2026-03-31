@@ -51,9 +51,10 @@ const cardVariants = {
 const TurmasSection = () => {
   const [forms, setForms] = useState<ActiveForm[]>([]);
   const [loading, setLoading] = useState(true);
-  const { enrollments_status } = useSettings();
+  const { enrollments_status, enrollments_date_start, enrollments_date_end } = useSettings();
   const isClosed = enrollments_status === "closed";
   const isExtended = enrollments_status === "extended";
+  const dateRange = `${enrollments_date_start || "24/03"} a ${enrollments_date_end || "30/03"}`;
 
   useEffect(() => {
     fetchActiveForms()
@@ -85,7 +86,7 @@ const TurmasSection = () => {
             {isClosed
               ? "As inscrições foram encerradas. Fique atento para a próxima edição!"
               : isExtended
-              ? "As inscrições foram prorrogadas! Escolha a turma ideal e garanta sua vaga até 30 de março."
+              ? `As inscrições foram prorrogadas! Escolha a turma ideal e garanta sua vaga até ${enrollments_date_end || "30/03"}.`
               : "Vagas limitadas! Garanta sua vaga e escolha a turma ideal."}
           </p>
 
@@ -94,7 +95,7 @@ const TurmasSection = () => {
             <div className="mt-6 inline-flex flex-col sm:flex-row items-center gap-4 bg-primary/5 border border-primary/20 rounded-2xl px-6 py-3">
               <div className="flex items-center gap-2 text-foreground text-sm font-semibold">
                 <CalendarDays className="w-4 h-4 text-primary" />
-                <span>Inscrições: <strong>24/03 a 30/03</strong></span>
+                <span>Inscrições: <strong>{dateRange}</strong></span>
               </div>
               <span className="hidden sm:block text-border">|</span>
               <a

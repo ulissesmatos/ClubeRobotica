@@ -11,6 +11,8 @@ export interface SiteSettings {
   phone_number: string;
   phone_enabled: string;
   enrollments_status: string;
+  enrollments_date_start: string;
+  enrollments_date_end: string;
 }
 
 const ALLOWED_KEYS = new Set<string>([
@@ -24,6 +26,8 @@ const ALLOWED_KEYS = new Set<string>([
   "phone_number",
   "phone_enabled",
   "enrollments_status",
+  "enrollments_date_start",
+  "enrollments_date_end",
 ]);
 
 export function getSettings(): SiteSettings {

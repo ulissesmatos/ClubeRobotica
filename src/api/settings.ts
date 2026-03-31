@@ -9,6 +9,8 @@ export interface SiteSettings {
   phone_number: string;
   phone_enabled: string;
   enrollments_status: string;
+  enrollments_date_start: string;
+  enrollments_date_end: string;
 }
 
 export const DEFAULT_SETTINGS: SiteSettings = {
@@ -23,6 +25,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   phone_number: "559998881234",
   phone_enabled: "1",
   enrollments_status: "open",
+  enrollments_date_start: "24/03",
+  enrollments_date_end: "30/03",
 };
 
 export async function fetchPublicSettings(): Promise<SiteSettings> {

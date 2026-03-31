@@ -6,9 +6,10 @@ import logosCodomSemecti from "@/assets/codó_e_semecti.webp";
 import { useSettings } from "@/context/SettingsContext";
 
 const HeroSection = () => {
-  const { enrollments_status } = useSettings();
+  const { enrollments_status, enrollments_date_start, enrollments_date_end } = useSettings();
   const isClosed = enrollments_status === "closed";
   const isExtended = enrollments_status === "extended";
+  const dateRange = `${enrollments_date_start || "24/03"} a ${enrollments_date_end || "30/03"}`;
 
   const scrollTo = (id: string) =>
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
@@ -77,8 +78,8 @@ const HeroSection = () => {
             {isClosed
               ? "🔒 Inscrições Encerradas"
               : isExtended
-              ? "🤖 Inscrições Prorrogadas — 24 a 30/03!"
-              : "🤖 Inscrições Abertas!"}
+              ? `🤖 Inscrições Prorrogadas — ${dateRange}!`
+              : `🤖 Inscrições Abertas — ${dateRange}!`}
           </motion.span>
 
           <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-primary-foreground leading-tight mb-3 font-display">
@@ -131,12 +132,12 @@ const HeroSection = () => {
             {isClosed ? (
               <div className="flex items-center gap-2 text-red-300 text-sm font-semibold">
                 <CalendarDays className="w-4 h-4" />
-                <span>Inscrições encerradas em 30/03</span>
+                <span>Inscrições encerradas em {enrollments_date_end || "30/03"}</span>
               </div>
             ) : (
               <div className="flex items-center gap-2 text-primary-foreground/80 text-sm font-semibold">
                 <CalendarDays className="w-4 h-4" />
-                <span>Inscrições: 24/03 a 30/03</span>
+                <span>Inscrições: {dateRange}</span>
               </div>
             )}
           </motion.div>

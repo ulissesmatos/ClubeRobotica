@@ -15,6 +15,8 @@ const DEFAULT: SiteSettingsAdmin = {
   phone_number: "",
   phone_enabled: "1",
   enrollments_status: "open",
+  enrollments_date_start: "24/03",
+  enrollments_date_end: "30/03",
 };
 
 function Toggle({
@@ -142,6 +144,34 @@ export default function SettingsPage() {
               </button>
             ))}
           </div>
+          {form.enrollments_status !== "closed" && (
+            <div className="grid grid-cols-2 gap-4 pt-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Data de início
+                </label>
+                <input
+                  type="text"
+                  value={form.enrollments_date_start}
+                  onChange={(e) => set("enrollments_date_start", e.target.value)}
+                  placeholder="24/03"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Data de encerramento
+                </label>
+                <input
+                  type="text"
+                  value={form.enrollments_date_end}
+                  onChange={(e) => set("enrollments_date_end", e.target.value)}
+                  placeholder="30/03"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            </div>
+          )}
         </section>
 
         {/* ── WhatsApp ── */}
