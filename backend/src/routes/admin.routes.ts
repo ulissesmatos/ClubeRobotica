@@ -30,6 +30,7 @@ import {
   isAllowedMime,
   validateFileContent,
   saveUploadedFile,
+  getSubmissionsExportData,
   VALID_STATUSES,
   SubmissionStatus,
 } from "../services/submissions.service";
@@ -506,6 +507,59 @@ export async function adminRoutes(app: FastifyInstance) {
   // Mantido para compatibilidade com referências antigas no banco (:submissionId/:filename)
   // VALID_STATUSES exportado apenas para garantir que seja importado sem tree-shake warning
   void VALID_STATUSES;
+
+  // ─── Export Excel ─────────────────────────────────────────────────────────────
+
+  /**
+   * GET /api/admin/submissions/export[?formId=N]
+   * Gera e retorna um arquivo .xlsx com todas as inscrições (ou só de um formulário).
+   * Cada formulário vira uma aba separada na planilha.
+   */
+  app.get(
+    "/submissions/export",
+    async (request: FastifyRequest<{ Querystring: { formId?: string } }>, reply) => {
+      const XLSX = await import("xlsx");
+
+      const formId = request.query.formId ? parseInt(request.query.formId, 10) : undefined;
+      if (formId !== undefined && isNaN(formId)) {
+        return reply.status(400).send({ error: "Bad Request", message: "formId inválido." });
+      }
+
+      const sheets = getSubmissionsExportData(formId);
+
+      const wb = XLSX.utils.book_new();
+
+      if (sheets.length === 0) {
+        const ws = XLSX.utils.aoa_to_sheet([["Nenhuma inscrição encontrada."]]);
+        XLSX.utils.book_append_sheet(wb, ws, "Inscrições");
+      } else {
+        for (const { sheetName, headers, rows } of sheets) {
+          const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+          // Largura automática das colunas baseada no conteúdo
+          const colWidths = headers.map((h, i) => ({
+            wch: Math.max(
+              h.length,
+              ...rows.map((r) => (r[i] ?? "").length),
+              10
+            ),
+          }));
+          ws["!cols"] = colWidths;
+          XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        }
+      }
+
+      const buffer = Buffer.from(
+        XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Uint8Array
+      );
+      const date = new Date().toISOString().split("T")[0];
+      const filename = `inscricoes_${date}.xlsx`;
+
+      return reply
+        .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+        .header("Content-Disposition", `attachment; filename="${filename}"`)
+        .send(buffer);
+    }
+  );
 
   // ─── Settings ────────────────────────────────────────────────────────────────
 

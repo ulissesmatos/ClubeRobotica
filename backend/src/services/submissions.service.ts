@@ -479,3 +479,114 @@ export function deleteSubmission(id: number): {
 
   return { deleted: true, filePaths };
 }
+
+// ─── Exportação para Excel ────────────────────────────────────────────────────
+
+export interface ExportSheetData {
+  sheetName: string;
+  headers: string[];
+  rows: string[][];
+}
+
+export function getSubmissionsExportData(formId?: number): ExportSheetData[] {
+  const db = getDb();
+
+  const formRows = formId
+    ? (db.prepare("SELECT id, title FROM forms WHERE id = ?").all(formId) as { id: number; title: string }[])
+    : (db.prepare("SELECT id, title FROM forms ORDER BY display_order, id").all() as { id: number; title: string }[]);
+
+  const statusLabel: Record<string, string> = {
+    pendente: "Pendente",
+    aprovado: "Deferido",
+    rejeitado: "Indeferido",
+  };
+
+  const result: ExportSheetData[] = [];
+
+  for (const form of formRows) {
+    const submissions = db
+      .prepare(`
+        SELECT id, protocol, status, submitted_at
+        FROM submissions
+        WHERE form_id = ?
+        ORDER BY submitted_at ASC
+      `)
+      .all(form.id) as { id: number; protocol: string; status: string; submitted_at: string }[];
+
+    if (submissions.length === 0) continue;
+
+    // Colunas dos campos na ordem do formulário
+    const fields = db
+      .prepare(`
+        SELECT name, label FROM form_fields
+        WHERE form_id = ?
+        ORDER BY field_order, id
+      `)
+      .all(form.id) as { name: string; label: string }[];
+
+    // Fallback: se form_fields estiver vazio, coleta labels únicos dos dados
+    const fieldList =
+      fields.length > 0
+        ? fields
+        : (db
+            .prepare(`
+              SELECT DISTINCT field_name AS name, field_label AS label
+              FROM submission_data
+              WHERE submission_id IN (
+                SELECT id FROM submissions WHERE form_id = ?
+              )
+              ORDER BY id
+            `)
+            .all(form.id) as { name: string; label: string }[]);
+
+    const headers = [
+      "Protocolo",
+      "Status",
+      "Data/Hora",
+      ...fieldList.map((f) => f.label),
+    ];
+
+    const rows: string[][] = [];
+
+    for (const sub of submissions) {
+      const dataRows = db
+        .prepare(`
+          SELECT field_name, value_text, value_file_path
+          FROM submission_data
+          WHERE submission_id = ?
+        `)
+        .all(sub.id) as {
+          field_name: string;
+          value_text: string | null;
+          value_file_path: string | null;
+        }[];
+
+      const dataMap: Record<string, string> = {};
+      for (const row of dataRows) {
+        if (row.value_file_path) {
+          // Normaliza path e pega só o nome do arquivo
+          const normalised = row.value_file_path.replace(/\\/g, "/");
+          const parts = normalised.split("/").filter(Boolean);
+          // Inclui uuid/filename para identificar o arquivo de forma única
+          dataMap[row.field_name] =
+            parts.length >= 2 ? parts.slice(-2).join("/") : normalised;
+        } else {
+          dataMap[row.field_name] = row.value_text ?? "";
+        }
+      }
+
+      rows.push([
+        sub.protocol,
+        statusLabel[sub.status] ?? sub.status,
+        sub.submitted_at,
+        ...fieldList.map((f) => dataMap[f.name] ?? ""),
+      ]);
+    }
+
+    // Nome da aba limitado a 31 chars (limite do Excel)
+    const sheetName = form.title.substring(0, 31);
+    result.push({ sheetName, headers, rows });
+  }
+
+  return result;
+}

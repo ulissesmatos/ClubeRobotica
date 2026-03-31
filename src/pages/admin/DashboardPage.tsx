@@ -13,12 +13,14 @@ import {
   XCircle,
   Loader2,
   RefreshCw,
+  Download,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import {
   apiListSubmissions,
   apiListForms,
   apiCountByForm,
+  apiExportSubmissions,
   type SubmissionListItem,
   type PaginatedSubmissions,
   type FormRow,
@@ -108,6 +110,8 @@ export default function DashboardPage() {
   // UI
   const [loading, setLoading]   = useState(true);
   const [error,   setError]     = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
   const [showFilters, setShowFilters] = useState(
     !!(searchParams.get("formId") || searchParams.get("status") || searchParams.get("dateFrom") || searchParams.get("dateTo") || searchParams.get("schoolGroupId"))
   );
@@ -193,6 +197,27 @@ export default function DashboardPage() {
     setSearchParams({}, { replace: true });
   }
 
+  async function handleExport() {
+    if (!accessToken) return;
+    setExporting(true);
+    setExportError("");
+    try {
+      const blob = await apiExportSubmissions(accessToken, formId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `inscricoes_${new Date().toISOString().split("T")[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e: unknown) {
+      setExportError(e instanceof Error ? e.message : "Erro ao exportar.");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   const total = data?.total ?? 0;
 
   return (
@@ -263,6 +288,21 @@ export default function DashboardPage() {
             Filtros
           </button>
 
+          {/* Export */}
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            title={formId ? "Exportar turma filtrada" : "Exportar todas as inscrições"}
+            className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60"
+          >
+            {exporting ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            {exporting ? "Exportando..." : "Excel"}
+          </button>
+
           {/* Refresh */}
           <button
             onClick={() => { fetchData(); fetchCounts(); }}
@@ -272,6 +312,14 @@ export default function DashboardPage() {
             <RefreshCw className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Export error */}
+        {exportError && (
+          <div className="px-5 py-2 bg-red-50 border-b border-red-200 text-red-700 text-sm flex items-center justify-between">
+            <span>{exportError}</span>
+            <button onClick={() => setExportError("")} className="text-red-400 hover:text-red-600 font-bold ml-4">✕</button>
+          </div>
+        )}
 
         {/* Expandable filters */}
         {showFilters && (

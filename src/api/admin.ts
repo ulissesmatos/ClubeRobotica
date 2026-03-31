@@ -436,6 +436,18 @@ export async function apiUpdateSettings(
   return json as SiteSettingsAdmin;
 }
 
+export async function apiExportSubmissions(
+  token: string,
+  formId?: number
+): Promise<Blob> {
+  const url = formId
+    ? `/api/admin/submissions/export?formId=${formId}`
+    : `/api/admin/submissions/export`;
+  const res = await fetch(url, { headers: buildAuthHeaders(token) });
+  if (!res.ok) throw new Error("Erro ao exportar inscrições.");
+  return res.blob();
+}
+
 // ─── Schools ──────────────────────────────────────────────────────────────────
 
 export interface RawSchoolName {
