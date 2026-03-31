@@ -583,8 +583,14 @@ export function getSubmissionsExportData(formId?: number): ExportSheetData[] {
       ]);
     }
 
-    // Nome da aba limitado a 31 chars (limite do Excel)
-    const sheetName = form.title.substring(0, 31);
+    // Nome da aba limitado a 31 chars (limite do Excel), com sufixo se duplicar
+    let sheetName = form.title.substring(0, 31);
+    const usedNames = new Set(result.map((r) => r.sheetName));
+    if (usedNames.has(sheetName)) {
+      let idx = 2;
+      while (usedNames.has(sheetName.substring(0, 28) + ` ${idx}`)) idx++;
+      sheetName = sheetName.substring(0, 28) + ` ${idx}`;
+    }
     result.push({ sheetName, headers, rows });
   }
 
