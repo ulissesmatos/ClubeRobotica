@@ -333,7 +333,7 @@ export default function DashboardPage() {
               >
                 <option value="">Todas</option>
                 {groups.map((g) => (
-                  <option key={g.id} value={g.id}>{g.canonical_name}</option>
+                  <option key={g.id} value={g.id}>{g.canonical_name} ({g.count})</option>
                 ))}
               </select>
             </div>
