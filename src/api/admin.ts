@@ -487,7 +487,7 @@ export async function apiDownloadBackup(
     onProgress(received, contentLength);
   }
 
-  return new Blob(chunks, { type: "application/zip" });
+  return new Blob(chunks as BlobPart[], { type: "application/zip" });
 }
 
 /**
