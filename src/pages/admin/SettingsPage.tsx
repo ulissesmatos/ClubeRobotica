@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
-import { Save, Loader2, CheckCircle, Phone, Instagram, MessageCircle, CalendarDays } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Save, Loader2, CheckCircle, Phone, Instagram, MessageCircle, CalendarDays, HardDrive, Download, Upload, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { apiGetSettings, apiUpdateSettings, type SiteSettingsAdmin } from "@/api/admin";
+import { apiGetSettings, apiUpdateSettings, apiDownloadBackup, apiRestoreBackup, type SiteSettingsAdmin } from "@/api/admin";
 import { AdminLayout } from "./AdminLayout";
 
 const DEFAULT: SiteSettingsAdmin = {
@@ -57,6 +57,15 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [backingUp, setBackingUp] = useState(false);
+  const [backupError, setBackupError] = useState("");
+  const [backupDone, setBackupDone] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [restoreError, setRestoreError] = useState("");
+  const [restoreDone, setRestoreDone] = useState(false);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const restoreInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -85,6 +94,62 @@ export default function SettingsPage() {
       setError(err instanceof Error ? err.message : "Erro ao salvar.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleBackup() {
+    if (!accessToken) return;
+    setBackingUp(true);
+    setBackupError("");
+    setBackupDone(false);
+    try {
+      const blob = await apiDownloadBackup(accessToken);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const date = new Date().toISOString().split("T")[0];
+      a.download = `backup_${date}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setBackupDone(true);
+      setTimeout(() => setBackupDone(false), 5000);
+    } catch (err: unknown) {
+      setBackupError(err instanceof Error ? err.message : "Erro ao criar backup.");
+    } finally {
+      setBackingUp(false);
+    }
+  }
+
+  function handleRestoreFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!f.name.endsWith(".zip")) {
+      setRestoreError("Selecione um arquivo .zip gerado pelo backup.");
+      return;
+    }
+    setRestoreFile(f);
+    setRestoreError("");
+    setShowRestoreConfirm(true);
+  }
+
+  async function handleRestoreConfirm() {
+    if (!accessToken || !restoreFile) return;
+    setRestoring(true);
+    setRestoreError("");
+    setRestoreDone(false);
+    setShowRestoreConfirm(false);
+    try {
+      await apiRestoreBackup(accessToken, restoreFile);
+      setRestoreDone(true);
+      setRestoreFile(null);
+      if (restoreInputRef.current) restoreInputRef.current.value = "";
+      setTimeout(() => setRestoreDone(false), 5000);
+    } catch (err: unknown) {
+      setRestoreError(err instanceof Error ? err.message : "Erro ao restaurar backup.");
+    } finally {
+      setRestoring(false);
     }
   }
 
@@ -318,6 +383,137 @@ export default function SettingsPage() {
           )}
         </div>
       </form>
+
+      {/* ── Backup e Restauração ── */}
+      <section className="mt-6 bg-white rounded-2xl border border-border shadow-sm p-6 space-y-4">
+        <div className="flex items-center gap-2 mb-2">
+          <HardDrive className="w-5 h-5 text-slate-600" />
+          <h2 className="font-semibold text-foreground">Backup e Restauração</h2>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Baixe uma cópia completa do sistema (banco de dados + todos os arquivos enviados: boletins, imagens, PDFs).
+          O backup é gerado sem interromper o funcionamento. O arquivo .zip pode ser usado para restaurar o sistema completo.
+        </p>
+
+        {/* Erros */}
+        {backupError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm flex items-center justify-between">
+            <span>{backupError}</span>
+            <button onClick={() => setBackupError("")} className="text-red-400 hover:text-red-600 font-bold ml-4">✕</button>
+          </div>
+        )}
+        {restoreError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl p-3 text-sm flex items-center justify-between">
+            <span>{restoreError}</span>
+            <button onClick={() => setRestoreError("")} className="text-red-400 hover:text-red-600 font-bold ml-4">✕</button>
+          </div>
+        )}
+
+        {/* Backup */}
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleBackup}
+            disabled={backingUp || restoring}
+            className="flex items-center gap-2 bg-slate-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-slate-800 transition-colors disabled:opacity-60"
+          >
+            {backingUp ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            {backingUp ? "Gerando backup..." : "Baixar backup"}
+          </button>
+          {backupDone && (
+            <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
+              <CheckCircle className="w-4 h-4" />
+              Backup baixado com sucesso!
+            </span>
+          )}
+        </div>
+
+        {/* Divisor */}
+        <hr className="border-border" />
+
+        {/* Restauração */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Upload className="w-4 h-4 text-amber-600" />
+            <h3 className="text-sm font-semibold text-foreground">Restaurar backup</h3>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Selecione um arquivo <strong>.zip</strong> gerado pelo botão acima. O banco de dados e
+            todos os arquivos serão substituídos. O sistema cria uma cópia de segurança automática
+            dos dados atuais antes de restaurar.
+          </p>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <label
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm border-2 border-dashed cursor-pointer transition-colors ${
+                restoring
+                  ? "opacity-60 cursor-not-allowed border-border text-muted-foreground"
+                  : "border-amber-300 text-amber-700 hover:bg-amber-50"
+              }`}
+            >
+              {restoring ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4" />
+              )}
+              {restoring ? "Restaurando..." : "Selecionar arquivo .zip"}
+              <input
+                ref={restoreInputRef}
+                type="file"
+                accept=".zip"
+                onChange={handleRestoreFileSelect}
+                disabled={restoring}
+                className="hidden"
+              />
+            </label>
+            {restoreDone && (
+              <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
+                <CheckCircle className="w-4 h-4" />
+                Backup restaurado com sucesso!
+              </span>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Modal de confirmação de restauração */}
+      {showRestoreConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm space-y-4">
+            <div className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="w-5 h-5" />
+              <h3 className="font-bold text-foreground">Confirmar restauração</h3>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Todos os dados atuais (inscrições, formulários, arquivos) serão substituídos pelo conteúdo do backup.
+              Uma cópia de segurança dos dados atuais será criada automaticamente.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Arquivo: <strong>{restoreFile?.name}</strong>
+            </p>
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => { setShowRestoreConfirm(false); setRestoreFile(null); if (restoreInputRef.current) restoreInputRef.current.value = ""; }}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleRestoreConfirm}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-amber-600 text-white text-sm font-bold hover:bg-amber-700 transition-colors"
+              >
+                Restaurar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

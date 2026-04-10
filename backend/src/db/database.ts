@@ -3,7 +3,7 @@ import { DatabaseSync } from "node:sqlite";
 import path from "path";
 import fs from "fs";
 
-const DB_PATH = process.env.DB_PATH ?? path.resolve("data", "db.sqlite");
+export const DB_PATH = process.env.DB_PATH ?? path.resolve("data", "db.sqlite");
 
 // Garante que o diretório do banco existe
 const dbDir = path.dirname(DB_PATH);
@@ -23,4 +23,12 @@ export function getDb(): DatabaseSync {
     _db.exec("PRAGMA foreign_keys = ON");
   }
   return _db;
+}
+
+/** Fecha a conexão com o banco (necessário antes de restaurar backup). */
+export function closeDb(): void {
+  if (_db) {
+    _db.close();
+    _db = null;
+  }
 }

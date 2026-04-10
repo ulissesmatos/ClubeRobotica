@@ -35,6 +35,7 @@ import {
   SubmissionStatus,
 } from "../services/submissions.service";
 import { getSettings, updateSettings } from "../services/settings.service";
+import { getDb, DB_PATH, closeDb } from "../db/database";
 
 // ─── Schemas Zod ─────────────────────────────────────────────────────────────
 
@@ -525,7 +526,11 @@ export async function adminRoutes(app: FastifyInstance) {
         return reply.status(400).send({ error: "Bad Request", message: "formId inválido." });
       }
 
-      const sheets = getSubmissionsExportData(formId);
+      const proto = request.headers["x-forwarded-proto"] ?? request.protocol;
+      const host = request.headers["x-forwarded-host"] ?? request.hostname;
+      const baseUrl = `${proto}://${host}`;
+
+      const sheets = getSubmissionsExportData(formId, baseUrl);
 
       const wb = XLSX.utils.book_new();
 
@@ -591,5 +596,169 @@ export async function adminRoutes(app: FastifyInstance) {
     }
     updateSettings(result.data as Record<string, string>);
     return getSettings();
+  });
+
+  // ─── Backup completo (DB + uploads) ───────────────────────────────────────────
+
+  /**
+   * GET /api/admin/backup
+   * Cria um arquivo ZIP contendo:
+   *   - db.sqlite  → cópia atômica via VACUUM INTO
+   *   - uploads/   → todos os arquivos enviados (PDFs, imagens)
+   * O ZIP pode ser usado para restaurar o sistema completo via POST /api/admin/restore.
+   */
+  app.get("/backup", async (_request, reply) => {
+    const os = await import("os");
+    const archiver = (await import("archiver")).default;
+
+    const backupDbPath = path.join(os.tmpdir(), `backup_${Date.now()}.sqlite`);
+    const uploadDir = process.env.UPLOAD_DIR ?? "/uploads";
+
+    try {
+      // 1. Backup atômico do banco via VACUUM INTO
+      const db = getDb();
+      db.exec(`VACUUM INTO '${backupDbPath.replace(/'/g, "''")}'`);
+
+      const dbStat = fs.statSync(backupDbPath);
+      if (dbStat.size === 0) throw new Error("Backup do banco gerou arquivo vazio.");
+
+      // 2. Cria o ZIP com streaming
+      const date = new Date().toISOString().replace(/[:.]/g, "-").split("T");
+      const filename = `backup_${date[0]}_${date[1].substring(0, 8)}.zip`;
+
+      reply
+        .header("Content-Type", "application/zip")
+        .header("Content-Disposition", `attachment; filename="${filename}"`);
+
+      const archive = archiver("zip", { zlib: { level: 5 } });
+
+      archive.on("error", (err: Error) => {
+        throw err;
+      });
+
+      // Adiciona o banco de dados
+      archive.file(backupDbPath, { name: "db.sqlite" });
+
+      // Adiciona pasta de uploads (se existir)
+      if (fs.existsSync(uploadDir)) {
+        archive.directory(uploadDir, "uploads");
+      }
+
+      archive.finalize();
+
+      // Limpa o banco temporário quando o archive terminar
+      archive.on("end", () => fs.unlink(backupDbPath, () => {}));
+
+      return reply.send(archive);
+    } catch (err) {
+      if (fs.existsSync(backupDbPath)) fs.unlinkSync(backupDbPath);
+      const message = err instanceof Error ? err.message : "Erro desconhecido ao criar backup.";
+      return reply.status(500).send({ error: "Backup falhou", message });
+    }
+  });
+
+  // ─── Restauração de backup (DB + uploads) ────────────────────────────────────
+
+  /**
+   * POST /api/admin/restore
+   * Recebe um arquivo ZIP (gerado pelo endpoint de backup) e restaura:
+   *   - db.sqlite  → substitui o banco atual (com backup do antigo em .bak)
+   *   - uploads/   → substitui a pasta de uploads (com backup da antiga em .bak)
+   */
+  app.post("/restore", async (request, reply) => {
+    const os = await import("os");
+    const unzipper = await import("unzipper");
+    const { pipeline } = await import("stream/promises");
+
+    const uploadDir = process.env.UPLOAD_DIR ?? "/uploads";
+
+    // Recebe o arquivo ZIP via multipart
+    const file = await request.file();
+    if (!file) {
+      return reply.status(400).send({ error: "Nenhum arquivo enviado." });
+    }
+
+    if (!file.filename.endsWith(".zip")) {
+      return reply.status(400).send({ error: "O arquivo deve ser um .zip gerado pelo sistema de backup." });
+    }
+
+    // Salva o ZIP em temp
+    const tmpZip = path.join(os.tmpdir(), `restore_${Date.now()}.zip`);
+    const tmpExtract = path.join(os.tmpdir(), `restore_${Date.now()}`);
+
+    try {
+      // 1. Salva o ZIP no disco
+      const writeStream = fs.createWriteStream(tmpZip);
+      await pipeline(file.file, writeStream);
+
+      // 2. Extrai o ZIP
+      fs.mkdirSync(tmpExtract, { recursive: true });
+      await pipeline(
+        fs.createReadStream(tmpZip),
+        unzipper.Extract({ path: tmpExtract })
+      );
+
+      // 3. Valida conteúdo — deve conter db.sqlite
+      const extractedDbPath = path.join(tmpExtract, "db.sqlite");
+      if (!fs.existsSync(extractedDbPath)) {
+        return reply.status(400).send({
+          error: "ZIP inválido: arquivo db.sqlite não encontrado.",
+        });
+      }
+
+      // Valida que o arquivo é um banco SQLite real (magic bytes)
+      const header = Buffer.alloc(16);
+      const fd = fs.openSync(extractedDbPath, "r");
+      fs.readSync(fd, header, 0, 16, 0);
+      fs.closeSync(fd);
+      if (header.toString("utf8", 0, 15) !== "SQLite format 3") {
+        return reply.status(400).send({
+          error: "ZIP inválido: db.sqlite não é um banco SQLite válido.",
+        });
+      }
+
+      const timestamp = Date.now();
+
+      // 4. Fecha a conexão atual com o banco
+      closeDb();
+
+      // 5. Faz backup do banco atual → .bak (segurança)
+      const dbBak = `${DB_PATH}.${timestamp}.bak`;
+      if (fs.existsSync(DB_PATH)) fs.copyFileSync(DB_PATH, dbBak);
+      // Remove WAL e SHM do banco antigo (serão recriados)
+      for (const ext of ["-wal", "-shm"]) {
+        const f = DB_PATH + ext;
+        if (fs.existsSync(f)) fs.unlinkSync(f);
+      }
+
+      // 6. Substitui o banco
+      fs.copyFileSync(extractedDbPath, DB_PATH);
+
+      // 7. Restaura uploads (se existirem no ZIP)
+      const extractedUploads = path.join(tmpExtract, "uploads");
+      if (fs.existsSync(extractedUploads)) {
+        // Backup da pasta de uploads atual
+        const uploadsBak = `${uploadDir}.${timestamp}.bak`;
+        if (fs.existsSync(uploadDir)) {
+          fs.renameSync(uploadDir, uploadsBak);
+        }
+        // Copia uploads do backup
+        fs.cpSync(extractedUploads, uploadDir, { recursive: true });
+      }
+
+      // 8. Reabre a conexão com o novo banco
+      getDb();
+
+      return { success: true, message: "Backup restaurado com sucesso." };
+    } catch (err) {
+      // Tenta reabrir o banco mesmo em caso de erro
+      try { getDb(); } catch { /* ignore */ }
+      const message = err instanceof Error ? err.message : "Erro desconhecido ao restaurar.";
+      return reply.status(500).send({ error: "Restauração falhou", message });
+    } finally {
+      // Limpa arquivos temporários
+      if (fs.existsSync(tmpZip)) fs.unlinkSync(tmpZip);
+      if (fs.existsSync(tmpExtract)) fs.rmSync(tmpExtract, { recursive: true, force: true });
+    }
   });
 }

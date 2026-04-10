@@ -488,7 +488,7 @@ export interface ExportSheetData {
   rows: string[][];
 }
 
-export function getSubmissionsExportData(formId?: number): ExportSheetData[] {
+export function getSubmissionsExportData(formId?: number, baseUrl?: string): ExportSheetData[] {
   const db = getDb();
 
   const formRows = formId
@@ -564,12 +564,12 @@ export function getSubmissionsExportData(formId?: number): ExportSheetData[] {
       const dataMap: Record<string, string> = {};
       for (const row of dataRows) {
         if (row.value_file_path) {
-          // Normaliza path e pega só o nome do arquivo
-          const normalised = row.value_file_path.replace(/\\/g, "/");
-          const parts = normalised.split("/").filter(Boolean);
-          // Inclui uuid/filename para identificar o arquivo de forma única
-          dataMap[row.field_name] =
-            parts.length >= 2 ? parts.slice(-2).join("/") : normalised;
+          // Constrói URL completa para o arquivo (acessível via /api/admin/uploads/...)
+          const normalised = row.value_file_path.replace(/\\\\/g, "/");
+          const cleanPath = normalised.replace(/^\/+/, "");
+          dataMap[row.field_name] = baseUrl
+            ? `${baseUrl}/api/admin/uploads/${cleanPath}`
+            : `/api/admin/uploads/${cleanPath}`;
         } else {
           dataMap[row.field_name] = row.value_text ?? "";
         }

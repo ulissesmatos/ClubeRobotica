@@ -450,6 +450,32 @@ export async function apiExportSubmissions(
   return res.blob();
 }
 
+// ─── Backup & Restore ─────────────────────────────────────────────────────────
+
+export async function apiDownloadBackup(token: string): Promise<Blob> {
+  const res = await fetch("/api/admin/backup", { headers: buildAuthHeaders(token) });
+  if (!res.ok) {
+    const json = await res.json().catch(() => null);
+    throw new Error((json as { message?: string } | null)?.message ?? "Erro ao criar backup.");
+  }
+  return res.blob();
+}
+
+export async function apiRestoreBackup(token: string, file: File): Promise<{ success: boolean; message: string }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch("/api/admin/restore", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  const json = await res.json();
+  if (!res.ok) {
+    throw new Error((json as { error?: string }).error ?? "Erro ao restaurar backup.");
+  }
+  return json as { success: boolean; message: string };
+}
+
 // ─── Schools ──────────────────────────────────────────────────────────────────
 
 export interface RawSchoolName {
