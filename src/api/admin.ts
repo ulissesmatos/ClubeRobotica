@@ -452,28 +452,84 @@ export async function apiExportSubmissions(
 
 // ─── Backup & Restore ─────────────────────────────────────────────────────────
 
-export async function apiDownloadBackup(token: string): Promise<Blob> {
+export type ProgressCallback = (received: number, total: number) => void;
+
+/**
+ * Baixa o backup com progresso real via ReadableStream.
+ * O backend envia Content-Length, permitindo calcular a porcentagem exata.
+ */
+export async function apiDownloadBackup(
+  token: string,
+  onProgress?: ProgressCallback
+): Promise<Blob> {
   const res = await fetch("/api/admin/backup", { headers: buildAuthHeaders(token) });
   if (!res.ok) {
     const json = await res.json().catch(() => null);
     throw new Error((json as { message?: string } | null)?.message ?? "Erro ao criar backup.");
   }
-  return res.blob();
+
+  const contentLength = Number(res.headers.get("Content-Length")) || 0;
+
+  // Se não há body stream ou não temos tamanho, fallback simples
+  if (!onProgress || !contentLength || !res.body) {
+    return res.blob();
+  }
+
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    received += value.length;
+    onProgress(received, contentLength);
+  }
+
+  return new Blob(chunks, { type: "application/zip" });
 }
 
-export async function apiRestoreBackup(token: string, file: File): Promise<{ success: boolean; message: string }> {
-  const formData = new FormData();
-  formData.append("file", file);
-  const res = await fetch("/api/admin/restore", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    body: formData,
+/**
+ * Envia o arquivo de restauração com progresso de upload via XMLHttpRequest.
+ * fetch() não suporta upload progress, então usamos XHR.
+ */
+export function apiRestoreBackup(
+  token: string,
+  file: File,
+  onProgress?: ProgressCallback
+): Promise<{ success: boolean; message: string }> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/admin/restore");
+    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+
+    if (onProgress) {
+      xhr.upload.addEventListener("progress", (e) => {
+        if (e.lengthComputable) onProgress(e.loaded, e.total);
+      });
+    }
+
+    xhr.addEventListener("load", () => {
+      try {
+        const json = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(json as { success: boolean; message: string });
+        } else {
+          reject(new Error((json as { error?: string }).error ?? "Erro ao restaurar backup."));
+        }
+      } catch {
+        reject(new Error("Resposta inválida do servidor."));
+      }
+    });
+
+    xhr.addEventListener("error", () => reject(new Error("Erro de rede ao restaurar backup.")));
+    xhr.addEventListener("timeout", () => reject(new Error("Timeout ao restaurar backup.")));
+
+    const formData = new FormData();
+    formData.append("file", file);
+    xhr.send(formData);
   });
-  const json = await res.json();
-  if (!res.ok) {
-    throw new Error((json as { error?: string }).error ?? "Erro ao restaurar backup.");
-  }
-  return json as { success: boolean; message: string };
 }
 
 // ─── Schools ──────────────────────────────────────────────────────────────────

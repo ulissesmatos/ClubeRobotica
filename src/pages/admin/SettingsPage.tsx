@@ -60,9 +60,13 @@ export default function SettingsPage() {
   const [backingUp, setBackingUp] = useState(false);
   const [backupError, setBackupError] = useState("");
   const [backupDone, setBackupDone] = useState(false);
+  const [backupProgress, setBackupProgress] = useState(0);
+  const [backupPhase, setBackupPhase] = useState<"preparing" | "downloading">("preparing");
   const [restoring, setRestoring] = useState(false);
   const [restoreError, setRestoreError] = useState("");
   const [restoreDone, setRestoreDone] = useState(false);
+  const [restoreProgress, setRestoreProgress] = useState(0);
+  const [restorePhase, setRestorePhase] = useState<"uploading" | "processing">("uploading");
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [restoreFile, setRestoreFile] = useState<File | null>(null);
   const restoreInputRef = useRef<HTMLInputElement>(null);
@@ -102,8 +106,13 @@ export default function SettingsPage() {
     setBackingUp(true);
     setBackupError("");
     setBackupDone(false);
+    setBackupProgress(0);
+    setBackupPhase("preparing");
     try {
-      const blob = await apiDownloadBackup(accessToken);
+      const blob = await apiDownloadBackup(accessToken, (received, total) => {
+        setBackupPhase("downloading");
+        setBackupProgress(Math.round((received / total) * 100));
+      });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -113,6 +122,7 @@ export default function SettingsPage() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      setBackupProgress(100);
       setBackupDone(true);
       setTimeout(() => setBackupDone(false), 5000);
     } catch (err: unknown) {
@@ -139,9 +149,16 @@ export default function SettingsPage() {
     setRestoring(true);
     setRestoreError("");
     setRestoreDone(false);
+    setRestoreProgress(0);
+    setRestorePhase("uploading");
     setShowRestoreConfirm(false);
     try {
-      await apiRestoreBackup(accessToken, restoreFile);
+      await apiRestoreBackup(accessToken, restoreFile, (sent, total) => {
+        const pct = Math.round((sent / total) * 100);
+        setRestoreProgress(pct);
+        if (pct >= 100) setRestorePhase("processing");
+      });
+      setRestoreProgress(100);
       setRestoreDone(true);
       setRestoreFile(null);
       if (restoreInputRef.current) restoreInputRef.current.value = "";
@@ -410,25 +427,52 @@ export default function SettingsPage() {
         )}
 
         {/* Backup */}
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={handleBackup}
-            disabled={backingUp || restoring}
-            className="flex items-center gap-2 bg-slate-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-slate-800 transition-colors disabled:opacity-60"
-          >
-            {backingUp ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Download className="w-4 h-4" />
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={handleBackup}
+              disabled={backingUp || restoring}
+              className="flex items-center gap-2 bg-slate-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-slate-800 transition-colors disabled:opacity-60"
+            >
+              {backingUp ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              {backingUp
+                ? backupPhase === "preparing"
+                  ? "Preparando backup..."
+                  : `Baixando... ${backupProgress}%`
+                : "Baixar backup"}
+            </button>
+            {backupDone && (
+              <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
+                <CheckCircle className="w-4 h-4" />
+                Backup baixado com sucesso!
+              </span>
             )}
-            {backingUp ? "Gerando backup..." : "Baixar backup"}
-          </button>
-          {backupDone && (
-            <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
-              <CheckCircle className="w-4 h-4" />
-              Backup baixado com sucesso!
-            </span>
+          </div>
+          {backingUp && (
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{backupPhase === "preparing" ? "Preparando o arquivo ZIP no servidor..." : "Baixando arquivo..."}</span>
+                {backupPhase === "downloading" && <span>{backupProgress}%</span>}
+              </div>
+              <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
+                {backupPhase === "preparing" ? (
+                  <div className="h-full bg-slate-500 rounded-full animate-pulse w-full" />
+                ) : (
+                  <div
+                    className="h-full bg-slate-600 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${backupProgress}%` }}
+                  />
+                )}
+              </div>
+              {backupPhase === "preparing" && (
+                <p className="text-xs text-muted-foreground italic">Compactando banco de dados e arquivos. Pode levar alguns minutos...</p>
+              )}
+            </div>
           )}
         </div>
 
@@ -447,34 +491,61 @@ export default function SettingsPage() {
             dos dados atuais antes de restaurar.
           </p>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <label
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm border-2 border-dashed cursor-pointer transition-colors ${
-                restoring
-                  ? "opacity-60 cursor-not-allowed border-border text-muted-foreground"
-                  : "border-amber-300 text-amber-700 hover:bg-amber-50"
-              }`}
-            >
-              {restoring ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Upload className="w-4 h-4" />
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <label
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm border-2 border-dashed cursor-pointer transition-colors ${
+                  restoring
+                    ? "opacity-60 cursor-not-allowed border-border text-muted-foreground"
+                    : "border-amber-300 text-amber-700 hover:bg-amber-50"
+                }`}
+              >
+                {restoring ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Upload className="w-4 h-4" />
+                )}
+                {restoring
+                  ? restorePhase === "uploading"
+                    ? `Enviando... ${restoreProgress}%`
+                    : "Restaurando no servidor..."
+                  : "Selecionar arquivo .zip"}
+                <input
+                  ref={restoreInputRef}
+                  type="file"
+                  accept=".zip"
+                  onChange={handleRestoreFileSelect}
+                  disabled={restoring}
+                  className="hidden"
+                />
+              </label>
+              {restoreDone && (
+                <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
+                  <CheckCircle className="w-4 h-4" />
+                  Backup restaurado com sucesso!
+                </span>
               )}
-              {restoring ? "Restaurando..." : "Selecionar arquivo .zip"}
-              <input
-                ref={restoreInputRef}
-                type="file"
-                accept=".zip"
-                onChange={handleRestoreFileSelect}
-                disabled={restoring}
-                className="hidden"
-              />
-            </label>
-            {restoreDone && (
-              <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
-                <CheckCircle className="w-4 h-4" />
-                Backup restaurado com sucesso!
-              </span>
+            </div>
+            {restoring && (
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>{restorePhase === "uploading" ? "Enviando arquivo para o servidor..." : "Restaurando banco de dados e arquivos..."}</span>
+                  {restorePhase === "uploading" && <span>{restoreProgress}%</span>}
+                </div>
+                <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
+                  {restorePhase === "processing" ? (
+                    <div className="h-full bg-amber-500 rounded-full animate-pulse w-full" />
+                  ) : (
+                    <div
+                      className="h-full bg-amber-500 rounded-full transition-all duration-300 ease-out"
+                      style={{ width: `${restoreProgress}%` }}
+                    />
+                  )}
+                </div>
+                {restorePhase === "processing" && (
+                  <p className="text-xs text-muted-foreground italic">Extraindo e aplicando backup. Não feche esta página...</p>
+                )}
+              </div>
             )}
           </div>
         </div>

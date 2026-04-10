@@ -605,57 +605,72 @@ export async function adminRoutes(app: FastifyInstance) {
    * Cria um arquivo ZIP contendo:
    *   - db.sqlite  → cópia atômica via VACUUM INTO
    *   - uploads/   → todos os arquivos enviados (PDFs, imagens)
-   * O ZIP pode ser usado para restaurar o sistema completo via POST /api/admin/restore.
+   * Gera o ZIP em temp primeiro para poder enviar Content-Length (barra de progresso).
    */
-  app.get("/backup", async (_request, reply) => {
-    const os = await import("os");
-    const archiver = (await import("archiver")).default;
+  app.get(
+    "/backup",
+    { config: { rateLimit: { max: 2, timeWindow: "1 minute" } } },
+    async (_request, reply) => {
+      const os = await import("os");
+      const archiver = (await import("archiver")).default;
 
-    const backupDbPath = path.join(os.tmpdir(), `backup_${Date.now()}.sqlite`);
-    const uploadDir = process.env.UPLOAD_DIR ?? "/uploads";
+      const ts = Date.now();
+      const backupDbPath = path.join(os.tmpdir(), `backup_db_${ts}.sqlite`);
+      const backupZipPath = path.join(os.tmpdir(), `backup_${ts}.zip`);
+      const uploadDir = process.env.UPLOAD_DIR ?? "/uploads";
 
-    try {
-      // 1. Backup atômico do banco via VACUUM INTO
-      const db = getDb();
-      db.exec(`VACUUM INTO '${backupDbPath.replace(/'/g, "''")}'`);
+      try {
+        // 1. Backup atômico do banco via VACUUM INTO
+        const db = getDb();
+        db.exec(`VACUUM INTO '${backupDbPath.replace(/'/g, "''")}'`);
 
-      const dbStat = fs.statSync(backupDbPath);
-      if (dbStat.size === 0) throw new Error("Backup do banco gerou arquivo vazio.");
+        const dbStat = fs.statSync(backupDbPath);
+        if (dbStat.size === 0) throw new Error("Backup do banco gerou arquivo vazio.");
 
-      // 2. Cria o ZIP com streaming
-      const date = new Date().toISOString().replace(/[:.]/g, "-").split("T");
-      const filename = `backup_${date[0]}_${date[1].substring(0, 8)}.zip`;
+        // 2. Cria ZIP em arquivo temporário (para saber o tamanho exato)
+        const archive = archiver("zip", { zlib: { level: 5 } });
+        const zipWriteStream = fs.createWriteStream(backupZipPath);
 
-      reply
-        .header("Content-Type", "application/zip")
-        .header("Content-Disposition", `attachment; filename="${filename}"`);
+        archive.on("error", (err: Error) => { throw err; });
 
-      const archive = archiver("zip", { zlib: { level: 5 } });
+        archive.file(backupDbPath, { name: "db.sqlite" });
+        if (fs.existsSync(uploadDir)) {
+          archive.directory(uploadDir, "uploads");
+        }
 
-      archive.on("error", (err: Error) => {
-        throw err;
-      });
+        archive.pipe(zipWriteStream);
+        await archive.finalize();
+        // Espera o stream de escrita terminar
+        await new Promise<void>((resolve, reject) => {
+          zipWriteStream.on("close", resolve);
+          zipWriteStream.on("error", reject);
+        });
 
-      // Adiciona o banco de dados
-      archive.file(backupDbPath, { name: "db.sqlite" });
+        // 3. Lê o tamanho real do ZIP e envia com Content-Length
+        const zipStat = fs.statSync(backupZipPath);
+        const date = new Date().toISOString().replace(/[:.]/g, "-").split("T");
+        const filename = `backup_${date[0]}_${date[1].substring(0, 8)}.zip`;
 
-      // Adiciona pasta de uploads (se existir)
-      if (fs.existsSync(uploadDir)) {
-        archive.directory(uploadDir, "uploads");
+        const stream = fs.createReadStream(backupZipPath);
+        stream.on("close", () => {
+          fs.unlink(backupDbPath, () => {});
+          fs.unlink(backupZipPath, () => {});
+        });
+
+        return reply
+          .header("Content-Type", "application/zip")
+          .header("Content-Disposition", `attachment; filename="${filename}"`)
+          .header("Content-Length", zipStat.size)
+          .send(stream);
+      } catch (err) {
+        for (const f of [backupDbPath, backupZipPath]) {
+          if (fs.existsSync(f)) fs.unlinkSync(f);
+        }
+        const message = err instanceof Error ? err.message : "Erro desconhecido ao criar backup.";
+        return reply.status(500).send({ error: "Backup falhou", message });
       }
-
-      archive.finalize();
-
-      // Limpa o banco temporário quando o archive terminar
-      archive.on("end", () => fs.unlink(backupDbPath, () => {}));
-
-      return reply.send(archive);
-    } catch (err) {
-      if (fs.existsSync(backupDbPath)) fs.unlinkSync(backupDbPath);
-      const message = err instanceof Error ? err.message : "Erro desconhecido ao criar backup.";
-      return reply.status(500).send({ error: "Backup falhou", message });
     }
-  });
+  );
 
   // ─── Restauração de backup (DB + uploads) ────────────────────────────────────
 
