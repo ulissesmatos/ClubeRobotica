@@ -564,12 +564,10 @@ export function getSubmissionsExportData(formId?: number, baseUrl?: string): Exp
       const dataMap: Record<string, string> = {};
       for (const row of dataRows) {
         if (row.value_file_path) {
-          // Constrói URL completa para o arquivo (acessível via /api/admin/uploads/...)
-          const normalised = row.value_file_path.replace(/\\\\/g, "/");
-          const cleanPath = normalised.replace(/^\/+/, "");
+          // Link para a página de detalhes da submissão (não expõe o arquivo diretamente)
           dataMap[row.field_name] = baseUrl
-            ? `${baseUrl}/api/admin/uploads/${cleanPath}`
-            : `/api/admin/uploads/${cleanPath}`;
+            ? `${baseUrl}/admin/submissions/${sub.id}`
+            : `/admin/submissions/${sub.id}`;
         } else {
           dataMap[row.field_name] = row.value_text ?? "";
         }
