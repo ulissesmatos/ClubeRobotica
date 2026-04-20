@@ -15,6 +15,8 @@ import {
   Save,
   X,
   Upload,
+  ZoomIn,
+  Maximize2,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -55,6 +57,166 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+// ─── Image Lightbox ───────────────────────────────────────────────────────────
+
+function ImageLightbox({
+  src,
+  filename,
+  onClose,
+}: {
+  src: string;
+  filename: string;
+  onClose: () => void;
+}) {
+  const [scale, setScale] = useState(1);
+  const imgWrapRef = useRef<HTMLDivElement>(null);
+  const MIN_SCALE = 0.25;
+  const MAX_SCALE = 8;
+
+  // Keyboard close
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  // Non-passive wheel listener so we can preventDefault and stop page scroll
+  useEffect(() => {
+    const el = imgWrapRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.12 : 0.12;
+      setScale((s) => Math.min(Math.max(s + delta * s, MIN_SCALE), MAX_SCALE));
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, []);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/88 flex items-center justify-center"
+      onClick={onClose}
+    >
+      {/* Controls */}
+      <div
+        className="absolute top-4 right-4 flex items-center gap-2 z-10"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span className="text-white/50 text-xs tabular-nums mr-1">
+          {Math.round(scale * 100)}%
+        </span>
+        <a
+          href={src}
+          download={filename}
+          className="p-2 rounded-lg bg-white/10 hover:bg-white/25 text-white transition-colors"
+          title="Baixar"
+        >
+          <Download className="w-5 h-5" />
+        </a>
+        <button
+          onClick={onClose}
+          className="p-2 rounded-lg bg-white/10 hover:bg-white/25 text-white transition-colors"
+          title="Fechar (Esc)"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Image */}
+      <div
+        ref={imgWrapRef}
+        className="flex items-center justify-center"
+        style={{ cursor: scale < MAX_SCALE ? "zoom-in" : "zoom-out" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <img
+          src={src}
+          alt={filename}
+          draggable={false}
+          style={{
+            transform: `scale(${scale})`,
+            transformOrigin: "center",
+            transition: "transform 0.08s ease-out",
+            maxWidth: "88vw",
+            maxHeight: "88vh",
+            display: "block",
+            userSelect: "none",
+          }}
+        />
+      </div>
+
+      <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/35 text-xs pointer-events-none">
+        Scroll para zoom · Clique fora para fechar
+      </p>
+    </div>
+  );
+}
+
+// ─── PDF Lightbox ─────────────────────────────────────────────────────────────
+
+function PdfLightbox({
+  src,
+  filename,
+  onClose,
+}: {
+  src: string;
+  filename: string;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/88 flex flex-col"
+      onClick={onClose}
+    >
+      {/* Header */}
+      <div
+        className="flex items-center justify-between px-5 py-3 bg-black/60 shrink-0"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span className="text-white/80 text-sm font-mono truncate max-w-[60vw]">
+          {filename}
+        </span>
+        <div className="flex items-center gap-2">
+          <a
+            href={src}
+            download={filename}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm transition-colors"
+          >
+            <Download className="w-4 h-4" />
+            Baixar
+          </a>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
+            title="Fechar (Esc)"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+
+      {/* PDF */}
+      <div
+        className="flex-1 p-3 min-h-0"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <iframe
+          src={src}
+          title={filename}
+          className="w-full h-full rounded-lg bg-white"
+        />
+      </div>
+    </div>
+  );
+}
+
 // ─── File viewer ──────────────────────────────────────────────────────────────
 
 const ALLOWED_EDIT_TYPES = [
@@ -73,6 +235,7 @@ function FileViewer({ token, filePath, editing, onFileReplace, pendingFile }: Fi
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const objectUrlRef = useRef<string | null>(null);
 
   const filename = filePath.replace(/\\/g, "/").split("/").pop() ?? "arquivo";
@@ -152,18 +315,56 @@ function FileViewer({ token, filePath, editing, onFileReplace, pendingFile }: Fi
 
       {/* Arquivo atual */}
       {isImage && (
-        <img
-          src={objectUrl}
-          alt={filename}
-          className="max-w-full max-h-80 rounded-lg border border-border object-contain"
-        />
+        <>
+          {lightboxOpen && objectUrl && (
+            <ImageLightbox
+              src={objectUrl}
+              filename={filename}
+              onClose={() => setLightboxOpen(false)}
+            />
+          )}
+          <div
+            className="relative group inline-block cursor-zoom-in"
+            onClick={() => setLightboxOpen(true)}
+            title="Clique para expandir"
+          >
+            <img
+              src={objectUrl}
+              alt={filename}
+              className="max-w-full max-h-80 rounded-lg border border-border object-contain"
+            />
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded-lg">
+              <div className="bg-black/60 rounded-full p-2">
+                <ZoomIn className="w-5 h-5 text-white" />
+              </div>
+            </div>
+          </div>
+        </>
       )}
       {isPdf && (
-        <iframe
-          src={objectUrl}
-          title={filename}
-          className="w-full h-96 rounded-lg border border-border"
-        />
+        <>
+          {lightboxOpen && objectUrl && (
+            <PdfLightbox
+              src={objectUrl}
+              filename={filename}
+              onClose={() => setLightboxOpen(false)}
+            />
+          )}
+          <div className="space-y-2">
+            <iframe
+              src={objectUrl}
+              title={filename}
+              className="w-full h-96 rounded-lg border border-border"
+            />
+            <button
+              onClick={() => setLightboxOpen(true)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+              Expandir PDF
+            </button>
+          </div>
+        </>
       )}
       {!isImage && !isPdf && (
         <div className="flex items-center gap-2 py-3 text-muted-foreground text-sm">
