@@ -68,8 +68,12 @@ function ImageLightbox({
   filename: string;
   onClose: () => void;
 }) {
-  const [scale, setScale] = useState(1);
-  const imgWrapRef = useRef<HTMLDivElement>(null);
+  const [transform, setTransform] = useState({ scale: 1, x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const transformRef = useRef(transform);
+  transformRef.current = transform;
+  const containerRef = useRef<HTMLDivElement>(null);
+  const didDrag = useRef(false);
   const MIN_SCALE = 0.25;
   const MAX_SCALE = 8;
 
@@ -80,30 +84,65 @@ function ImageLightbox({
     return () => document.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  // Non-passive wheel listener so we can preventDefault and stop page scroll
+  // Non-passive wheel: zoom toward cursor
   useEffect(() => {
-    const el = imgWrapRef.current;
+    const el = containerRef.current;
     if (!el) return;
     const handler = (e: WheelEvent) => {
       e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.12 : 0.12;
-      setScale((s) => Math.min(Math.max(s + delta * s, MIN_SCALE), MAX_SCALE));
+      const rect = el.getBoundingClientRect();
+      // cursor relative to container center
+      const cursorX = e.clientX - rect.left - rect.width / 2;
+      const cursorY = e.clientY - rect.top - rect.height / 2;
+      setTransform((prev) => {
+        const factor = e.deltaY > 0 ? 0.88 : 1.14;
+        const newScale = Math.min(Math.max(prev.scale * factor, MIN_SCALE), MAX_SCALE);
+        const ratio = newScale / prev.scale;
+        return {
+          scale: newScale,
+          x: cursorX - (cursorX - prev.x) * ratio,
+          y: cursorY - (cursorY - prev.y) * ratio,
+        };
+      });
     };
     el.addEventListener("wheel", handler, { passive: false });
     return () => el.removeEventListener("wheel", handler);
   }, []);
 
+  // Click-and-drag pan
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    didDrag.current = false;
+    setDragging(true);
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const { x: ox, y: oy } = transformRef.current;
+
+    const onMove = (me: MouseEvent) => {
+      didDrag.current = true;
+      setTransform((prev) => ({
+        ...prev,
+        x: ox + (me.clientX - startX),
+        y: oy + (me.clientY - startY),
+      }));
+    };
+    const onUp = () => {
+      setDragging(false);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, []);
+
+  const { scale, x, y } = transform;
+
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/88 flex items-center justify-center"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-50 bg-black/65 flex items-center justify-center">
       {/* Controls */}
-      <div
-        className="absolute top-4 right-4 flex items-center gap-2 z-10"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <span className="text-white/50 text-xs tabular-nums mr-1">
+      <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
+        <span className="text-white/60 text-xs tabular-nums mr-1">
           {Math.round(scale * 100)}%
         </span>
         <a
@@ -123,31 +162,34 @@ function ImageLightbox({
         </button>
       </div>
 
-      {/* Image */}
+      {/* Full-overlay drag/zoom surface */}
       <div
-        ref={imgWrapRef}
-        className="flex items-center justify-center"
-        style={{ cursor: scale < MAX_SCALE ? "zoom-in" : "zoom-out" }}
-        onClick={(e) => e.stopPropagation()}
+        ref={containerRef}
+        className="absolute inset-0 overflow-hidden"
+        style={{ cursor: dragging ? "grabbing" : "grab" }}
+        onMouseDown={handleMouseDown}
+        onClick={() => { if (!didDrag.current) onClose(); }}
       >
         <img
           src={src}
           alt={filename}
           draggable={false}
           style={{
-            transform: `scale(${scale})`,
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${scale})`,
             transformOrigin: "center",
-            transition: "transform 0.08s ease-out",
             maxWidth: "88vw",
             maxHeight: "88vh",
-            display: "block",
             userSelect: "none",
+            pointerEvents: "none",
           }}
         />
       </div>
 
-      <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/35 text-xs pointer-events-none">
-        Scroll para zoom · Clique fora para fechar
+      <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/40 text-xs pointer-events-none">
+        Scroll para zoom · Arraste para mover · Clique fora para fechar
       </p>
     </div>
   );
