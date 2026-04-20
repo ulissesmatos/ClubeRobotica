@@ -58,6 +58,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .finally(() => setIsInitializing(false));
   }, []);
 
+  // ── Proactive token refresh every 12 min (token TTL = 15 min) ───────────────
+  // Prevents API calls from failing silently when the access token expires.
+  useEffect(() => {
+    if (!accessToken) return;
+    const INTERVAL_MS = 12 * 60 * 1000; // 12 minutes
+    const id = setInterval(async () => {
+      const newToken = await apiRefreshToken().catch(() => null);
+      if (newToken) {
+        setAccessToken(newToken);
+      } else {
+        // Refresh token also expired — force logout
+        setAccessToken(null);
+        setAdmin(null);
+      }
+    }, INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [accessToken]);
+
   // ── Login ────────────────────────────────────────────────────────────────────
   const login = useCallback(async (email: string, password: string) => {
     const { accessToken: token, admin: adminData } = await apiLogin(email, password);
