@@ -796,12 +796,15 @@ export async function adminRoutes(app: FastifyInstance) {
       // 7. Restaura uploads (se existirem no ZIP)
       const extractedUploads = path.join(tmpExtract, "uploads");
       if (fs.existsSync(extractedUploads)) {
-        // Backup da pasta de uploads atual em /tmp (evita EACCES ao tentar escrever
-        // no mesmo nível que um volume Docker montado na raiz)
+        // Backup da pasta de uploads atual em /tmp
         const uploadsBak = path.join(os.tmpdir(), `uploads_bak_${timestamp}`);
         if (fs.existsSync(uploadDir)) {
           fs.cpSync(uploadDir, uploadsBak, { recursive: true });
-          fs.rmSync(uploadDir, { recursive: true, force: true });
+          // Limpa o CONTEÚDO do diretório sem removê-lo
+          // (rmSync no ponto de montagem Docker falha com EACCES)
+          for (const entry of fs.readdirSync(uploadDir)) {
+            fs.rmSync(path.join(uploadDir, entry), { recursive: true, force: true });
+          }
         }
         // Copia uploads do backup
         fs.cpSync(extractedUploads, uploadDir, { recursive: true });
