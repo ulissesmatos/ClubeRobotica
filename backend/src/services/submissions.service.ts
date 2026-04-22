@@ -393,6 +393,22 @@ export function updateSubmissionStatus(
   return result.changes > 0;
 }
 
+// ─── Mover inscrição para outro formulário ────────────────────────────────────
+
+export function moveSubmissionToForm(
+  submissionId: number,
+  targetFormId: number
+): boolean {
+  const db = getDb();
+  // Verifica se o formulário de destino existe
+  const form = db.prepare("SELECT id FROM forms WHERE id = ?").get(targetFormId);
+  if (!form) return false;
+  const result = db
+    .prepare("UPDATE submissions SET form_id = ? WHERE id = ?")
+    .run(targetFormId, submissionId);
+  return result.changes > 0;
+}
+
 // ─── Atualização de dados da submissão ────────────────────────────────────────
 
 export function updateSubmissionData(

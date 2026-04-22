@@ -23,6 +23,7 @@ import {
   countSubmissionsByForm,
   getSubmissionById,
   updateSubmissionStatus,
+  moveSubmissionToForm,
   updateSubmissionData,
   updateSubmissionFile,
   deleteSubmission,
@@ -356,6 +357,25 @@ export async function adminRoutes(app: FastifyInstance) {
       if (!ok) return reply.status(404).send({ error: "Not Found", message: "Submissão não encontrada." });
 
       return reply.send({ message: "Status atualizado com sucesso." });
+    }
+  );
+
+  /** PUT /api/admin/submissions/:id/form — move para outro formulário */
+  app.put(
+    "/submissions/:id/form",
+    async (request: FastifyRequest<{ Params: { id: string } }>, reply) => {
+      const id = parseId(request.params.id);
+      if (!id) return reply.status(400).send({ error: "Bad Request", message: "ID inválido." });
+
+      const parsed = z.object({ formId: z.number().int().positive() }).safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: "Validation Error", message: parsed.error.errors[0].message });
+      }
+
+      const ok = moveSubmissionToForm(id, parsed.data.formId);
+      if (!ok) return reply.status(404).send({ error: "Not Found", message: "Inscrição ou formulário não encontrado." });
+
+      return reply.send({ message: "Inscrição movida com sucesso." });
     }
   );
 

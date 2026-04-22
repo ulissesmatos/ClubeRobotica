@@ -17,18 +17,22 @@ import {
   Upload,
   ZoomIn,
   Maximize2,
+  ArrowRightLeft,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import {
   apiGetSubmission,
   apiUpdateStatus,
   apiDeleteSubmission,
+  apiMoveSubmission,
   apiUpdateSubmissionData,
   apiReplaceSubmissionFile,
+  apiListForms,
   fetchUploadAsBlob,
   type SubmissionDetail,
   type SubmissionDataRow,
   type SubmissionStatus,
+  type FormRow,
 } from "@/api/admin";
 
 import { AdminLayout } from "./AdminLayout";
@@ -514,6 +518,11 @@ export default function SubmissionDetailPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [deleting,   setDeleting]   = useState(false);
 
+  // Move form state
+  const [showMove,  setShowMove]  = useState(false);
+  const [moving,    setMoving]    = useState(false);
+  const [forms,     setForms]     = useState<FormRow[]>([]);
+
   // Editing state
   const [editing,     setEditing]     = useState(false);
   const [editValues,  setEditValues]  = useState<Record<number, string>>({});
@@ -535,6 +544,12 @@ export default function SubmissionDetailPage() {
   }, [accessToken, id]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Load forms list for the move modal (once)
+  useEffect(() => {
+    if (!accessToken) return;
+    apiListForms(accessToken).then(setForms).catch(() => {});
+  }, [accessToken]);
 
   async function handleStatusChange(newStatus: SubmissionStatus) {
     if (!accessToken || !id) return;
@@ -562,6 +577,20 @@ export default function SubmissionDetailPage() {
     } catch {
       setDeleting(false);
       setShowDelete(false);
+    }
+  }
+
+  async function handleMove(targetFormId: number) {
+    if (!accessToken || !id) return;
+    setMoving(true);
+    try {
+      await apiMoveSubmission(accessToken, Number(id), targetFormId);
+      setShowMove(false);
+      load(); // recarrega para atualizar o título do formulário
+    } catch {
+      // keep modal open on error
+    } finally {
+      setMoving(false);
     }
   }
 
@@ -663,6 +692,15 @@ export default function SubmissionDetailPage() {
           deleting={deleting}
         />
       )}
+      {showMove && submission && (
+        <MoveFormModal
+          forms={forms}
+          currentFormId={submission.form_id}
+          onConfirm={handleMove}
+          onCancel={() => setShowMove(false)}
+          moving={moving}
+        />
+      )}
 
       {/* Back link */}
       <button
@@ -714,6 +752,15 @@ export default function SubmissionDetailPage() {
               title="Excluir inscrição"
             >
               <Trash2 className="w-4 h-4" />
+            </button>
+
+            {/* Move to another form */}
+            <button
+              onClick={() => setShowMove(true)}
+              className="p-2 rounded-lg border border-blue-200 text-blue-500 hover:bg-blue-50 transition-colors"
+              title="Mover para outro formulário"
+            >
+              <ArrowRightLeft className="w-4 h-4" />
             </button>
           </div>
         </div>

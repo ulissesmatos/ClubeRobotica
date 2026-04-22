@@ -186,6 +186,19 @@ export async function apiDeleteSubmission(
   if (!res.ok) throw new Error("Erro ao excluir submissão.");
 }
 
+export async function apiMoveSubmission(
+  token: string,
+  id: number,
+  targetFormId: number
+): Promise<void> {
+  const res = await fetch(`/api/admin/submissions/${id}/form`, {
+    method: "PUT",
+    headers: { ...buildAuthHeaders(token), "Content-Type": "application/json" },
+    body: JSON.stringify({ formId: targetFormId }),
+  });
+  if (!res.ok) throw new Error("Erro ao mover inscrição.");
+}
+
 export async function apiUpdateSubmissionData(
   token: string,
   id: number,
