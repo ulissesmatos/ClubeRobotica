@@ -430,7 +430,7 @@ export interface ConflictResolutionResult {
  * Ex: "Inscrição Fundamental I — 3º ao 5º Ano (Manhã)" → "Inscrição Fundamental I — 3º ao 5º Ano"
  */
 function extractFormBase(title: string): string {
-  return title.replace(/\s*\(Manh[ãa]\)|\s*\(Tarde.*?\)/i, "").trim();
+  return title.replace(/\s*\(Manh[ãa].*?\)|\s*\(Tarde.*?\)/i, "").trim();
 }
 
 /**
