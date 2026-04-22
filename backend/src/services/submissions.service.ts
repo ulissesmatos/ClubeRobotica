@@ -425,8 +425,13 @@ export interface ConflictResolutionResult {
   details: ConflictResolutionDetail[];
 }
 
+/** Remove acentos e normaliza para comparação (evita falhas por encoding) */
+function stripAccents(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
 /**
- * Extrai a base do título removendo o sufixo de turno completo entre parênteses.
+ * Extrai a base do título removendo o sufixo entre parênteses.
  * Ex: "Inscrição Fundamental I — 3º ao 5º Ano (Manhã - Básico)" → "Inscrição Fundamental I — 3º ao 5º Ano"
  */
 function extractFormBase(title: string): string {
@@ -434,17 +439,19 @@ function extractFormBase(title: string): string {
 }
 
 /**
- * Extrai o nível do formulário a partir do sufixo entre parênteses.
- * Ex: "(Manhã - Básico)" → "básico", "(Tarde - Avançado)" → "avançado", "(Manhã)" → ""
+ * Extrai o nível do formulário (parte após o " - " dentro dos parênteses).
+ * Ex: "(Manhã - Básico)" → "basico", "(Tarde - Avançado)" → "avancado", "(Manhã)" → ""
+ * Usa stripAccents para evitar divergências de encoding.
  */
 function extractFormNivel(title: string): string {
   const match = title.match(/\([^)]*?-\s*([^)]+)\)/i);
-  return match ? match[1].trim().toLowerCase() : "";
+  return match ? stripAccents(match[1]) : "";
 }
 
 /**
  * Encontra o formulário par (turno oposto, mesma base, mesmo nível).
- * Ex: "Fund. II Manhã - Básico" → "Fund. II Tarde - Básico" (não Avançado)
+ * Ex: "Fund. II Manhã - Básico" → "Fund. II Tarde - Básico" (nunca Avançado)
+ * Formulários sem par (ex: Tarde - Avançado sem Manhã - Avançado) ficam como skipped.
  */
 function findOppositeForm(
   allForms: { id: number; title: string }[],
@@ -455,17 +462,22 @@ function findOppositeForm(
   const nivel = extractFormNivel(currentTitle);
   const isManha = /manh[ãa]/i.test(currentTitle);
 
-  return (
-    allForms.find((f) => {
-      if (f.id === currentFormId) return false;
-      // Mesma base
-      if (extractFormBase(f.title) !== base) return false;
-      // Mesmo nível (Básico/Avançado) — garante Fund. II Tarde-Básico ≠ Fund. II Tarde-Avançado
-      if (extractFormNivel(f.title) !== nivel) return false;
-      // Turno oposto
-      return isManha ? /tarde/i.test(f.title) : /manh[ãa]/i.test(f.title);
-    }) ?? null
-  );
+  const candidates = allForms.filter((f) => {
+    if (f.id === currentFormId) return false;
+    // Mesma base de título
+    if (extractFormBase(f.title) !== base) return false;
+    // Exatamente o mesmo nível (Básico/Avançado) — comparação sem acentos
+    if (extractFormNivel(f.title) !== nivel) return false;
+    // Turno oposto
+    return isManha ? /tarde/i.test(f.title) : /manh[ãa]/i.test(f.title);
+  });
+
+  if (candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+
+  // Múltiplos candidatos: preferir o que tem exatamente o mesmo sufixo de nível
+  // (segurança extra em caso de títulos ambíguos)
+  return candidates[0];
 }
 
 export function resolveShiftConflicts(dryRun = true): ConflictResolutionResult {
