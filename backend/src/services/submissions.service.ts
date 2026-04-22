@@ -409,7 +409,121 @@ export function moveSubmissionToForm(
   return result.changes > 0;
 }
 
-// ─── Atualização de dados da submissão ────────────────────────────────────────
+// ─── Resolução automática de conflitos de turno ───────────────────────────────
+
+export interface ConflictResolutionDetail {
+  id: number;
+  protocol: string;
+  name: string | null;
+  fromForm: string;
+  toForm: string;
+}
+
+export interface ConflictResolutionResult {
+  moved: number;
+  skipped: number;
+  details: ConflictResolutionDetail[];
+}
+
+/**
+ * Extrai a base do título removendo o sufixo de turno.
+ * Ex: "Inscrição Fundamental I — 3º ao 5º Ano (Manhã)" → "Inscrição Fundamental I — 3º ao 5º Ano"
+ */
+function extractFormBase(title: string): string {
+  return title.replace(/\s*\(Manh[ãa]\)|\s*\(Tarde.*?\)/i, "").trim();
+}
+
+/**
+ * Encontra o formulário par (turno oposto, mesma base).
+ * Se o form atual tem "Manh" no título, procura um com "Tarde" (e vice-versa).
+ */
+function findOppositeForm(
+  allForms: { id: number; title: string }[],
+  currentFormId: number,
+  currentTitle: string
+): { id: number; title: string } | null {
+  const base = extractFormBase(currentTitle);
+  const isManha = /manh[ãa]/i.test(currentTitle);
+
+  return (
+    allForms.find((f) => {
+      if (f.id === currentFormId) return false;
+      const fBase = extractFormBase(f.title);
+      if (fBase !== base) return false;
+      // Oposto: se atual é Manhã, destino deve ter Tarde; se atual é Tarde, destino deve ter Manhã
+      return isManha ? /tarde/i.test(f.title) : /manh[ãa]/i.test(f.title);
+    }) ?? null
+  );
+}
+
+export function resolveShiftConflicts(dryRun = true): ConflictResolutionResult {
+  const db = getDb();
+
+  // Busca todos os forms ativos
+  const allForms = db
+    .prepare("SELECT id, title FROM forms")
+    .all() as { id: number; title: string }[];
+
+  // Busca as submissões com conflito (mesmo SQL do filtro)
+  const conflicts = db
+    .prepare(`
+      SELECT
+        s.id,
+        s.protocol,
+        s.form_id,
+        f.title AS form_title,
+        (SELECT sd.value_text FROM submission_data sd
+         WHERE sd.submission_id = s.id AND sd.field_name = 'nome_completo'
+         LIMIT 1) AS nome_completo
+      FROM submissions s
+      JOIN forms f ON f.id = s.form_id
+      WHERE (
+        (f.title LIKE '%Manh%' AND EXISTS (
+          SELECT 1 FROM submission_data sd_sc
+          WHERE sd_sc.submission_id = s.id
+            AND sd_sc.field_name = 'turno'
+            AND sd_sc.value_text = 'Matutino'
+        ))
+        OR
+        (f.title LIKE '%Tarde%' AND EXISTS (
+          SELECT 1 FROM submission_data sd_sc
+          WHERE sd_sc.submission_id = s.id
+            AND sd_sc.field_name = 'turno'
+            AND sd_sc.value_text = 'Vespertino'
+        ))
+      )
+    `)
+    .all() as { id: number; protocol: string; form_id: number; form_title: string; nome_completo: string | null }[];
+
+  const details: ConflictResolutionDetail[] = [];
+  let moved = 0;
+  let skipped = 0;
+
+  for (const sub of conflicts) {
+    const target = findOppositeForm(allForms, sub.form_id, sub.form_title);
+    if (!target) {
+      skipped++;
+      continue;
+    }
+
+    details.push({
+      id: sub.id,
+      protocol: sub.protocol || `#${sub.id}`,
+      name: sub.nome_completo,
+      fromForm: sub.form_title,
+      toForm: target.title,
+    });
+
+    if (!dryRun) {
+      db.prepare("UPDATE submissions SET form_id = ? WHERE id = ?").run(target.id, sub.id);
+    }
+    moved++;
+  }
+
+  return { moved, skipped, details };
+}
+
+
 
 export function updateSubmissionData(
   submissionId: number,

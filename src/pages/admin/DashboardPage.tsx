@@ -14,6 +14,7 @@ import {
   Loader2,
   RefreshCw,
   Download,
+  ArrowRightLeft,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -21,13 +22,96 @@ import {
   apiListForms,
   apiCountByForm,
   apiExportSubmissions,
+  apiResolveConflicts,
   type SubmissionListItem,
   type PaginatedSubmissions,
   type FormRow,
   type SubmissionStatus,
+  type ConflictResolutionResult,
 } from "@/api/admin";
 import { apiListSchoolGroups, type SchoolGroup } from "@/api/admin";
+// ─── Resolve conflicts modal ───────────────────────────────────────────────────────────
 
+function ResolveConflictsModal({
+  preview,
+  executing,
+  onConfirm,
+  onCancel,
+}: {
+  preview: ConflictResolutionResult;
+  executing: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-2xl shadow-xl p-6 max-w-lg w-full mx-4 flex flex-col max-h-[80vh]">
+        <div className="flex items-center gap-3 mb-4 shrink-0">
+          <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
+            <ArrowRightLeft className="w-5 h-5 text-orange-600" />
+          </div>
+          <div>
+            <h3 className="font-bold text-foreground">Corrigir conflitos de turno</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {preview.moved} inscri{preview.moved === 1 ? "ção será movida" : "ções serão movidas"}
+              {preview.skipped > 0 && ` · ${preview.skipped} sem formulário par encontrado`}
+            </p>
+          </div>
+        </div>
+
+        {preview.moved === 0 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">
+            Nenhum conflito encontrado ou nenhum formulário par disponível.
+          </p>
+        ) : (
+          <div className="overflow-y-auto flex-1 mb-5 -mx-1 px-1">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-2 font-semibold text-muted-foreground">Aluno</th>
+                  <th className="text-left py-2 font-semibold text-muted-foreground">De</th>
+                  <th className="text-left py-2 font-semibold text-muted-foreground">Para</th>
+                </tr>
+              </thead>
+              <tbody>
+                {preview.details.map((d) => (
+                  <tr key={d.id} className="border-b border-border/50 hover:bg-muted/30">
+                    <td className="py-2 pr-3">
+                      <p className="font-medium text-foreground truncate max-w-[140px]">{d.name ?? "—"}</p>
+                      <p className="text-muted-foreground font-mono">{d.protocol}</p>
+                    </td>
+                    <td className="py-2 pr-3 text-red-600 truncate max-w-[160px]">{d.fromForm}</td>
+                    <td className="py-2 text-green-700 truncate max-w-[160px]">{d.toForm}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <div className="flex gap-3 justify-end shrink-0">
+          <button
+            onClick={onCancel}
+            disabled={executing}
+            className="px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          {preview.moved > 0 && (
+            <button
+              onClick={onConfirm}
+              disabled={executing}
+              className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-medium hover:bg-orange-600 transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              {executing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightLeft className="w-4 h-4" />}
+              Confirmar e mover
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
@@ -113,6 +197,11 @@ export default function DashboardPage() {
   const [error,   setError]     = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
+
+  // Resolve conflicts state
+  const [resolvePreview,  setResolvePreview]  = useState<ConflictResolutionResult | null>(null);
+  const [resolveLoading,  setResolveLoading]  = useState(false);
+  const [resolveExecuting, setResolveExecuting] = useState(false);
   const [showFilters, setShowFilters] = useState(
     !!(searchParams.get("formId") || searchParams.get("status") || searchParams.get("dateFrom") || searchParams.get("dateTo") || searchParams.get("schoolGroupId") || searchParams.get("shiftConflict"))
   );
@@ -222,8 +311,39 @@ export default function DashboardPage() {
 
   const total = data?.total ?? 0;
 
+  async function handleResolvePreview() {
+    if (!accessToken) return;
+    setResolveLoading(true);
+    try {
+      const preview = await apiResolveConflicts(accessToken, true);
+      setResolvePreview(preview);
+    } catch { /* ignore */ }
+    finally { setResolveLoading(false); }
+  }
+
+  async function handleResolveConfirm() {
+    if (!accessToken) return;
+    setResolveExecuting(true);
+    try {
+      await apiResolveConflicts(accessToken, false);
+      setResolvePreview(null);
+      fetchData();
+      fetchCounts();
+    } catch { /* ignore */ }
+    finally { setResolveExecuting(false); }
+  }
+
   return (
     <AdminLayout>
+      {resolvePreview && (
+        <ResolveConflictsModal
+          preview={resolvePreview}
+          executing={resolveExecuting}
+          onConfirm={handleResolveConfirm}
+          onCancel={() => setResolvePreview(null)}
+        />
+      )}
+
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <SummaryCard
@@ -395,8 +515,8 @@ export default function DashboardPage() {
               Limpar
             </button>
 
-            {/* Turno conflitante */}
-            <div className="ml-auto">
+            {/* Turno conflitante + corrigir automaticamente */}
+            <div className="ml-auto flex items-center gap-2">
               <button
                 onClick={() => updateParams({ shiftConflict: shiftConflict ? undefined : "true" })}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
@@ -409,6 +529,18 @@ export default function DashboardPage() {
                 <span>⚠️</span>
                 Turno conflitante
                 {shiftConflict && <span className="bg-orange-500 text-white text-xs rounded-full px-1.5 py-0.5 ml-1">ativo</span>}
+              </button>
+
+              <button
+                onClick={handleResolvePreview}
+                disabled={resolveLoading}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-orange-300 bg-orange-50 text-orange-700 text-sm font-medium hover:bg-orange-100 transition-colors disabled:opacity-60"
+                title="Corrigir automaticamente todos os conflitos de turno"
+              >
+                {resolveLoading
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : <ArrowRightLeft className="w-4 h-4" />}
+                Corrigir automaticamente
               </button>
             </div>
           </div>

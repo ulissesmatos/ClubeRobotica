@@ -24,6 +24,7 @@ import {
   getSubmissionById,
   updateSubmissionStatus,
   moveSubmissionToForm,
+  resolveShiftConflicts,
   updateSubmissionData,
   updateSubmissionFile,
   deleteSubmission,
@@ -376,6 +377,19 @@ export async function adminRoutes(app: FastifyInstance) {
       if (!ok) return reply.status(404).send({ error: "Not Found", message: "Inscrição ou formulário não encontrado." });
 
       return reply.send({ message: "Inscrição movida com sucesso." });
+    }
+  );
+
+  /** POST /api/admin/submissions/resolve-conflicts
+   *  dryRun=true  → retorna preview sem alterar dados
+   *  dryRun=false → executa a movimentacão em massa
+   */
+  app.post(
+    "/submissions/resolve-conflicts",
+    async (request: FastifyRequest<{ Querystring: { dryRun?: string } }>, reply) => {
+      const dryRun = (request.query as { dryRun?: string }).dryRun !== "false";
+      const result = resolveShiftConflicts(dryRun);
+      return reply.send({ ...result, dryRun });
     }
   );
 

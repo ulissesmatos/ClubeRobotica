@@ -6,6 +6,21 @@ export interface AdminUser {
   username: string;
 }
 
+export interface ConflictResolutionDetail {
+  id: number;
+  protocol: string;
+  name: string | null;
+  fromForm: string;
+  toForm: string;
+}
+
+export interface ConflictResolutionResult {
+  moved: number;
+  skipped: number;
+  dryRun: boolean;
+  details: ConflictResolutionDetail[];
+}
+
 export interface SubmissionListItem {
   id: number;
   form_id: number;
@@ -197,6 +212,19 @@ export async function apiMoveSubmission(
     body: JSON.stringify({ formId: targetFormId }),
   });
   if (!res.ok) throw new Error("Erro ao mover inscrição.");
+}
+
+export async function apiResolveConflicts(
+  token: string,
+  dryRun: boolean
+): Promise<ConflictResolutionResult> {
+  const qs = dryRun ? "?dryRun=true" : "?dryRun=false";
+  const res = await fetch(`/api/admin/submissions/resolve-conflicts${qs}`, {
+    method: "POST",
+    headers: buildAuthHeaders(token),
+  });
+  if (!res.ok) throw new Error("Erro ao resolver conflitos.");
+  return res.json() as Promise<ConflictResolutionResult>;
 }
 
 export async function apiUpdateSubmissionData(
