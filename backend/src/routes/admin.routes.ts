@@ -291,6 +291,7 @@ export async function adminRoutes(app: FastifyInstance) {
     dateFrom:      z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     dateTo:        z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     schoolGroupId: z.coerce.number().int().positive().optional(),
+    shiftConflict: z.coerce.boolean().optional(),
     page:          z.coerce.number().int().positive().default(1),
     pageSize:      z.coerce.number().int().min(1).max(100).default(20),
   });
@@ -315,6 +316,7 @@ export async function adminRoutes(app: FastifyInstance) {
       const result = listSubmissions({
         ...parsed.data,
         status: parsed.data.status as SubmissionStatus | undefined,
+        shiftConflict: parsed.data.shiftConflict,
       });
       return reply.send(result);
     }

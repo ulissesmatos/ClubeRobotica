@@ -105,6 +105,7 @@ export default function DashboardPage() {
   const dateFrom      = searchParams.get("dateFrom") || "";
   const dateTo        = searchParams.get("dateTo") || "";
   const schoolGroupId = searchParams.get("schoolGroupId") ? Number(searchParams.get("schoolGroupId")) : undefined;
+  const shiftConflict = searchParams.get("shiftConflict") === "true";
   const [searchInput, setSearchInput] = useState(search);
 
   // UI
@@ -113,7 +114,7 @@ export default function DashboardPage() {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const [showFilters, setShowFilters] = useState(
-    !!(searchParams.get("formId") || searchParams.get("status") || searchParams.get("dateFrom") || searchParams.get("dateTo") || searchParams.get("schoolGroupId"))
+    !!(searchParams.get("formId") || searchParams.get("status") || searchParams.get("dateFrom") || searchParams.get("dateTo") || searchParams.get("schoolGroupId") || searchParams.get("shiftConflict"))
   );
 
   // Form submission counts for filter labels
@@ -161,11 +162,12 @@ export default function DashboardPage() {
       dateFrom: dateFrom || undefined,
       dateTo:   dateTo   || undefined,
       schoolGroupId,
+      shiftConflict: shiftConflict || undefined,
     })
       .then(setData)
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [accessToken, page, formId, status, search, dateFrom, dateTo, schoolGroupId]);
+  }, [accessToken, page, formId, status, search, dateFrom, dateTo, schoolGroupId, shiftConflict]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -392,6 +394,23 @@ export default function DashboardPage() {
             >
               Limpar
             </button>
+
+            {/* Turno conflitante */}
+            <div className="ml-auto">
+              <button
+                onClick={() => updateParams({ shiftConflict: shiftConflict ? undefined : "true" })}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                  shiftConflict
+                    ? "bg-orange-100 border-orange-300 text-orange-700"
+                    : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                }`}
+                title="Mostra alunos cujo turno escolar é igual ao turno das aulas de robótica"
+              >
+                <span>⚠️</span>
+                Turno conflitante
+                {shiftConflict && <span className="bg-orange-500 text-white text-xs rounded-full px-1.5 py-0.5 ml-1">ativo</span>}
+              </button>
+            </div>
           </div>
         )}
 

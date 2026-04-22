@@ -129,6 +129,7 @@ export async function apiListSubmissions(
     dateFrom?: string;
     dateTo?: string;
     schoolGroupId?: number;
+    shiftConflict?: boolean;
   } = {}
 ): Promise<PaginatedSubmissions> {
   const qs = new URLSearchParams();
@@ -140,6 +141,7 @@ export async function apiListSubmissions(
   if (params.dateFrom)      qs.set("dateFrom",      params.dateFrom);
   if (params.dateTo)        qs.set("dateTo",        params.dateTo);
   if (params.schoolGroupId) qs.set("schoolGroupId", String(params.schoolGroupId));
+  if (params.shiftConflict) qs.set("shiftConflict", "true");
 
   const res = await fetch(`/api/admin/submissions?${qs}`, {
     headers: buildAuthHeaders(token),

@@ -220,6 +220,7 @@ export interface ListSubmissionsOptions {
   dateFrom?: string;      // ISO date string
   dateTo?: string;
   schoolGroupId?: number; // filtra pelo grupo de escola mapeado
+  shiftConflict?: boolean; // alunos cujo turno escolar conflita com o turno da robotica
   page: number;
   pageSize: number;
 }
@@ -282,6 +283,26 @@ export function listSubmissions(opts: ListSubmissionsOptions): {
         AND sa.group_id = ?
     )`);
     params.push(opts.schoolGroupId);
+  }
+  if (opts.shiftConflict) {
+    // Alunos cujo turno escolar (Matutino/Vespertino) é igual ao turno da aula de robótica:
+    //   formulário com 'Manhã' no título + turno escolar = Matutino  → conflito
+    //   formulário com 'Tarde' no título + turno escolar = Vespertino → conflito
+    conditions.push(`(
+      (f.title LIKE '%Manhã%' AND EXISTS (
+        SELECT 1 FROM submission_data sd_sc
+        WHERE sd_sc.submission_id = s.id
+          AND sd_sc.field_name = 'turno'
+          AND sd_sc.value_text = 'Matutino'
+      ))
+      OR
+      (f.title LIKE '%Tarde%' AND EXISTS (
+        SELECT 1 FROM submission_data sd_sc
+        WHERE sd_sc.submission_id = s.id
+          AND sd_sc.field_name = 'turno'
+          AND sd_sc.value_text = 'Vespertino'
+      ))
+    )`);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
