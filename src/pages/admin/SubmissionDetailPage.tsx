@@ -455,6 +455,90 @@ function FileViewer({ token, filePath, editing, onFileReplace, pendingFile }: Fi
   );
 }
 
+// ─── Move form modal ───────────────────────────────────────────────────────────
+
+function MoveFormModal({
+  forms,
+  currentFormId,
+  onConfirm,
+  onCancel,
+  moving,
+}: {
+  forms: FormRow[];
+  currentFormId: number;
+  onConfirm: (formId: number) => void;
+  onCancel: () => void;
+  moving: boolean;
+}) {
+  const [selected, setSelected] = useState<number>(currentFormId);
+  const others = forms.filter((f) => f.id !== currentFormId);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full mx-4">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+            <ArrowRightLeft className="w-5 h-5 text-blue-600" />
+          </div>
+          <h3 className="font-bold text-foreground">Mover para outro formulário</h3>
+        </div>
+
+        {others.length === 0 ? (
+          <p className="text-sm text-muted-foreground mb-5">Não há outros formulários disponíveis.</p>
+        ) : (
+          <>
+            <p className="text-sm text-muted-foreground mb-3">
+              Selecione o formulário de destino:
+            </p>
+            <div className="space-y-2 mb-5 max-h-64 overflow-y-auto pr-1">
+              {others.map((f) => (
+                <label
+                  key={f.id}
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    selected === f.id
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:bg-muted/50"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="targetForm"
+                    value={f.id}
+                    checked={selected === f.id}
+                    onChange={() => setSelected(f.id)}
+                    className="accent-primary"
+                  />
+                  <span className="text-sm text-foreground">{f.title}</span>
+                </label>
+              ))}
+            </div>
+          </>
+        )}
+
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onCancel}
+            disabled={moving}
+            className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          {others.length > 0 && (
+            <button
+              onClick={() => onConfirm(selected)}
+              disabled={moving || selected === currentFormId}
+              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity flex items-center gap-2 disabled:opacity-50"
+            >
+              {moving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightLeft className="w-4 h-4" />}
+              Mover
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Delete confirm modal ─────────────────────────────────────────────────────
 
 function DeleteModal({
