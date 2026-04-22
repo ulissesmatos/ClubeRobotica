@@ -288,15 +288,16 @@ export function listSubmissions(opts: ListSubmissionsOptions): {
     // Alunos cujo turno escolar (Matutino/Vespertino) é igual ao turno da aula de robótica:
     //   formulário com 'Manhã' no título + turno escolar = Matutino  → conflito
     //   formulário com 'Tarde' no título + turno escolar = Vespertino → conflito
+    // Usa subquery para buscar o título do form — funciona tanto no COUNT quanto no SELECT principal.
     conditions.push(`(
-      (f.title LIKE '%Manhã%' AND EXISTS (
+      ((SELECT title FROM forms WHERE id = s.form_id) LIKE '%Manh%' AND EXISTS (
         SELECT 1 FROM submission_data sd_sc
         WHERE sd_sc.submission_id = s.id
           AND sd_sc.field_name = 'turno'
           AND sd_sc.value_text = 'Matutino'
       ))
       OR
-      (f.title LIKE '%Tarde%' AND EXISTS (
+      ((SELECT title FROM forms WHERE id = s.form_id) LIKE '%Tarde%' AND EXISTS (
         SELECT 1 FROM submission_data sd_sc
         WHERE sd_sc.submission_id = s.id
           AND sd_sc.field_name = 'turno'
