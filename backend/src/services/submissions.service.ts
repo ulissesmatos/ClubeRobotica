@@ -426,16 +426,25 @@ export interface ConflictResolutionResult {
 }
 
 /**
- * Extrai a base do título removendo o sufixo de turno.
- * Ex: "Inscrição Fundamental I — 3º ao 5º Ano (Manhã)" → "Inscrição Fundamental I — 3º ao 5º Ano"
+ * Extrai a base do título removendo o sufixo de turno completo entre parênteses.
+ * Ex: "Inscrição Fundamental I — 3º ao 5º Ano (Manhã - Básico)" → "Inscrição Fundamental I — 3º ao 5º Ano"
  */
 function extractFormBase(title: string): string {
-  return title.replace(/\s*\(Manh[ãa].*?\)|\s*\(Tarde.*?\)/i, "").trim();
+  return title.replace(/\s*\([^)]+\)/i, "").trim();
 }
 
 /**
- * Encontra o formulário par (turno oposto, mesma base).
- * Se o form atual tem "Manh" no título, procura um com "Tarde" (e vice-versa).
+ * Extrai o nível do formulário a partir do sufixo entre parênteses.
+ * Ex: "(Manhã - Básico)" → "básico", "(Tarde - Avançado)" → "avançado", "(Manhã)" → ""
+ */
+function extractFormNivel(title: string): string {
+  const match = title.match(/\([^)]*?-\s*([^)]+)\)/i);
+  return match ? match[1].trim().toLowerCase() : "";
+}
+
+/**
+ * Encontra o formulário par (turno oposto, mesma base, mesmo nível).
+ * Ex: "Fund. II Manhã - Básico" → "Fund. II Tarde - Básico" (não Avançado)
  */
 function findOppositeForm(
   allForms: { id: number; title: string }[],
@@ -443,14 +452,17 @@ function findOppositeForm(
   currentTitle: string
 ): { id: number; title: string } | null {
   const base = extractFormBase(currentTitle);
+  const nivel = extractFormNivel(currentTitle);
   const isManha = /manh[ãa]/i.test(currentTitle);
 
   return (
     allForms.find((f) => {
       if (f.id === currentFormId) return false;
-      const fBase = extractFormBase(f.title);
-      if (fBase !== base) return false;
-      // Oposto: se atual é Manhã, destino deve ter Tarde; se atual é Tarde, destino deve ter Manhã
+      // Mesma base
+      if (extractFormBase(f.title) !== base) return false;
+      // Mesmo nível (Básico/Avançado) — garante Fund. II Tarde-Básico ≠ Fund. II Tarde-Avançado
+      if (extractFormNivel(f.title) !== nivel) return false;
+      // Turno oposto
       return isManha ? /tarde/i.test(f.title) : /manh[ãa]/i.test(f.title);
     }) ?? null
   );
