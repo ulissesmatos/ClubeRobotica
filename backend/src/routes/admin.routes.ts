@@ -723,34 +723,42 @@ export async function adminRoutes(app: FastifyInstance) {
 
     const uploadDir = process.env.UPLOAD_DIR ?? "/uploads";
 
-    // Recebe o arquivo ZIP via multipart
-    const file = await request.file();
+    // Recebe o arquivo com limite estendido (backups podem ter > 100MB)
+    const file = await request.file({ limits: { fileSize: 1024 * 1024 * 1024 } }); // 1GB
     if (!file) {
       return reply.status(400).send({ error: "Nenhum arquivo enviado." });
     }
 
-    if (!file.filename.endsWith(".zip")) {
-      return reply.status(400).send({ error: "O arquivo deve ser um .zip gerado pelo sistema de backup." });
+    const isSqlite = file.filename.endsWith(".sqlite") || file.filename.endsWith(".db");
+    const isZip = file.filename.endsWith(".zip");
+
+    if (!isZip && !isSqlite) {
+      return reply.status(400).send({ error: "O arquivo deve ser um .zip (backup completo) ou um .sqlite (somente banco de dados)." });
     }
 
-    // Salva o ZIP em temp
-    const tmpZip = path.join(os.tmpdir(), `restore_${Date.now()}.zip`);
-    const tmpExtract = path.join(os.tmpdir(), `restore_${Date.now()}`);
+    const ts = Date.now();
+    const tmpFile = path.join(os.tmpdir(), `restore_${ts}${isZip ? ".zip" : ".sqlite"}`);
+    const tmpExtract = path.join(os.tmpdir(), `restore_${ts}`);
 
     try {
-      // 1. Salva o ZIP no disco
-      const writeStream = fs.createWriteStream(tmpZip);
-      await pipeline(file.file, writeStream);
+      // 1. Stream direto para disco (evita carregar tudo em memória)
+      await pipeline(file.file, fs.createWriteStream(tmpFile));
+      const size = fs.statSync(tmpFile).size;
+      console.log(`[restore] arquivo salvo: ${tmpFile} (${size} bytes)`);
 
-      // 2. Extrai o ZIP
-      fs.mkdirSync(tmpExtract, { recursive: true });
-      await pipeline(
-        fs.createReadStream(tmpZip),
-        unzipper.Extract({ path: tmpExtract })
-      );
+      let extractedDbPath: string;
 
-      // 3. Valida conteúdo — deve conter db.sqlite
-      const extractedDbPath = path.join(tmpExtract, "db.sqlite");
+      if (isSqlite) {
+        extractedDbPath = tmpFile;
+      } else {
+        // 2. Extrai com unzipper.Open.file (lê o diretório central do ZIP no final do arquivo)
+        fs.mkdirSync(tmpExtract, { recursive: true });
+        const directory = await unzipper.Open.file(tmpFile);
+        await directory.extract({ path: tmpExtract });
+        extractedDbPath = path.join(tmpExtract, "db.sqlite");
+      }
+
+      // 3. Valida conteúdo — deve existir e ser um banco SQLite
       if (!fs.existsSync(extractedDbPath)) {
         return reply.status(400).send({
           error: "ZIP inválido: arquivo db.sqlite não encontrado.",
@@ -764,7 +772,7 @@ export async function adminRoutes(app: FastifyInstance) {
       fs.closeSync(fd);
       if (header.toString("utf8", 0, 15) !== "SQLite format 3") {
         return reply.status(400).send({
-          error: "ZIP inválido: db.sqlite não é um banco SQLite válido.",
+          error: "Arquivo inválido: não é um banco SQLite válido.",
         });
       }
 
@@ -788,10 +796,12 @@ export async function adminRoutes(app: FastifyInstance) {
       // 7. Restaura uploads (se existirem no ZIP)
       const extractedUploads = path.join(tmpExtract, "uploads");
       if (fs.existsSync(extractedUploads)) {
-        // Backup da pasta de uploads atual
+        // Backup da pasta de uploads atual (copia em vez de renomear — Windows não permite
+        // renomear pastas em uso pelo próprio processo)
         const uploadsBak = `${uploadDir}.${timestamp}.bak`;
         if (fs.existsSync(uploadDir)) {
-          fs.renameSync(uploadDir, uploadsBak);
+          fs.cpSync(uploadDir, uploadsBak, { recursive: true });
+          fs.rmSync(uploadDir, { recursive: true, force: true });
         }
         // Copia uploads do backup
         fs.cpSync(extractedUploads, uploadDir, { recursive: true });
@@ -804,11 +814,13 @@ export async function adminRoutes(app: FastifyInstance) {
     } catch (err) {
       // Tenta reabrir o banco mesmo em caso de erro
       try { getDb(); } catch { /* ignore */ }
+      console.error("[restore] ERRO:", err);
       const message = err instanceof Error ? err.message : "Erro desconhecido ao restaurar.";
-      return reply.status(500).send({ error: "Restauração falhou", message });
+      const stack = err instanceof Error ? err.stack : undefined;
+      return reply.status(500).send({ error: "Restauração falhou", message, stack });
     } finally {
       // Limpa arquivos temporários
-      if (fs.existsSync(tmpZip)) fs.unlinkSync(tmpZip);
+      if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile);
       if (fs.existsSync(tmpExtract)) fs.rmSync(tmpExtract, { recursive: true, force: true });
     }
   });

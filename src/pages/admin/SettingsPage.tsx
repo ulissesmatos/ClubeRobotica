@@ -513,7 +513,7 @@ export default function SettingsPage() {
                 <input
                   ref={restoreInputRef}
                   type="file"
-                  accept=".zip"
+                  accept=".zip,.sqlite,.db"
                   onChange={handleRestoreFileSelect}
                   disabled={restoring}
                   className="hidden"
