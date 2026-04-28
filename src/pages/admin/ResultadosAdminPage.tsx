@@ -92,33 +92,56 @@ function ResultRow({
   }
 
   return (
-    <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-      <td className="px-3 py-2.5 min-w-[220px]">
-        <div className="font-medium text-sm text-gray-900">{item.nome_completo}</div>
-        <div className="mt-0.5 flex items-center gap-1.5">
-          {resultadoLabel}
-          <StatusBadge status={item.match_status} />
+    <div className="px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
+      {/* Line 1: name + resultado + status + delete */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-medium text-sm text-gray-900 leading-snug break-words">{item.nome_completo}</p>
+          <div className="flex flex-wrap items-center gap-1.5 mt-1">
+            {resultadoLabel}
+            <StatusBadge status={item.match_status} />
+          </div>
         </div>
-      </td>
-      <td className="px-3 py-2.5 min-w-[200px]">
+        <button
+          onClick={handleDelete}
+          disabled={busy}
+          title="Remover da lista"
+          className="shrink-0 p-1 rounded text-red-300 hover:text-red-600 hover:bg-red-50 disabled:opacity-50"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Line 2: link info / candidates / unlink */}
+      <div className="mt-2">
         {item.match_status === "confirmed" && item.linked_protocol ? (
-          <div className="text-sm">
-            <span className="font-semibold text-green-700">{item.linked_protocol}</span>
-            {item.linked_nome && (
-              <div className="text-xs text-gray-500 truncate max-w-[180px]">{item.linked_nome}</div>
-            )}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm min-w-0">
+              <span className="font-semibold text-green-700">{item.linked_protocol}</span>
+              {item.linked_nome && (
+                <span className="text-xs text-gray-500 ml-1 break-words">{item.linked_nome}</span>
+              )}
+            </div>
+            <button
+              onClick={handleUnlink}
+              disabled={busy}
+              className="shrink-0 flex items-center gap-1 text-xs px-2 py-1 rounded bg-yellow-500 hover:bg-yellow-600 text-white disabled:opacity-50"
+            >
+              {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2Off className="w-3.5 h-3.5" />}
+              Desvincular
+            </button>
           </div>
         ) : item.candidates.length > 0 ? (
-          <div className="flex flex-col gap-1">
+          <div>
             <button
-              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 mb-1.5"
               onClick={() => setExpanded((v) => !v)}
             >
               {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               {item.candidates.length} candidato{item.candidates.length !== 1 ? "s" : ""}
             </button>
             {expanded && (
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1.5 mb-2 pl-1">
                 {item.candidates.map((c) => (
                   <label key={c.submission_id} className="flex items-start gap-1.5 cursor-pointer">
                     <input
@@ -127,9 +150,9 @@ function ResultRow({
                       value={c.submission_id}
                       checked={selectedCandidate === c.submission_id}
                       onChange={() => setSelectedCandidate(c.submission_id)}
-                      className="mt-0.5"
+                      className="mt-0.5 shrink-0"
                     />
-                    <span className="text-xs">
+                    <span className="text-xs break-words">
                       <span className="font-medium text-gray-800">{c.nome_inscricao}</span>
                       <span className="text-gray-400 ml-1">({c.protocol})</span>
                       <span className="ml-1"><ScoreBadge score={c.score} /></span>
@@ -138,46 +161,22 @@ function ResultRow({
                 ))}
               </div>
             )}
+            {selectedCandidate !== "" && (
+              <button
+                onClick={handleLink}
+                disabled={busy}
+                className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
+              >
+                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}
+                Vincular
+              </button>
+            )}
           </div>
         ) : (
           <span className="text-xs text-gray-400 italic">Sem candidatos</span>
         )}
-      </td>
-      <td className="px-3 py-2.5 text-right whitespace-nowrap">
-        <div className="flex items-center justify-end gap-1.5">
-          {item.match_status !== "confirmed" && selectedCandidate !== "" && (
-            <button
-              onClick={handleLink}
-              disabled={busy}
-              title="Confirmar vínculo"
-              className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
-            >
-              {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}
-              Vincular
-            </button>
-          )}
-          {item.match_status === "confirmed" && (
-            <button
-              onClick={handleUnlink}
-              disabled={busy}
-              title="Remover vínculo"
-              className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-yellow-500 hover:bg-yellow-600 text-white disabled:opacity-50"
-            >
-              {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2Off className="w-3.5 h-3.5" />}
-              Desvincular
-            </button>
-          )}
-          <button
-            onClick={handleDelete}
-            disabled={busy}
-            title="Remover da lista"
-            className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-red-100 hover:bg-red-200 text-red-700 disabled:opacity-50"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </td>
-    </tr>
+      </div>
+    </div>
   );
 }
 
@@ -251,7 +250,7 @@ function TabVinculacoes({
         <select
           value={filterEscola}
           onChange={(e) => setFilterEscola(e.target.value)}
-          className="text-sm border border-gray-300 rounded px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/40"
+          className="flex-1 min-w-[140px] text-sm border border-gray-300 rounded px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/40"
         >
           <option value="">Todas as escolas</option>
           {escolas.map((e) => <option key={e} value={e}>{e}</option>)}
@@ -260,7 +259,7 @@ function TabVinculacoes({
         <select
           value={filterStatus}
           onChange={(e) => setFilterStatus(e.target.value as MatchStatus | "")}
-          className="text-sm border border-gray-300 rounded px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/40"
+          className="flex-1 min-w-[130px] text-sm border border-gray-300 rounded px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/40"
         >
           <option value="">Todos os status</option>
           <option value="pending">Pendente</option>
@@ -272,7 +271,7 @@ function TabVinculacoes({
         <select
           value={filterResultado}
           onChange={(e) => setFilterResultado(e.target.value as "" | "aprovado" | "cadastro_reserva")}
-          className="text-sm border border-gray-300 rounded px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/40"
+          className="flex-1 min-w-[130px] text-sm border border-gray-300 rounded px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-primary/40"
         >
           <option value="">Aprovado + Reserva</option>
           <option value="aprovado">Apenas Aprovado</option>
@@ -297,27 +296,16 @@ function TabVinculacoes({
             <h3 className="text-sm font-bold text-gray-600 uppercase tracking-wide mb-2 border-b pb-1">
               {escola} <span className="font-normal text-gray-400">({rows.length})</span>
             </h3>
-            <div className="overflow-x-auto rounded-lg border border-gray-200">
-              <table className="w-full text-sm bg-white">
-                <thead>
-                  <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wide">
-                    <th className="px-3 py-2">Nome no PDF</th>
-                    <th className="px-3 py-2">Inscrição vinculada</th>
-                    <th className="px-3 py-2 text-right">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((item) => (
-                    <ResultRow
-                      key={item.id}
-                      item={item}
-                      onLink={onLink}
-                      onUnlink={onUnlink}
-                      onDelete={onDelete}
-                    />
-                  ))}
-                </tbody>
-              </table>
+            <div className="rounded-lg border border-gray-200 bg-white overflow-hidden divide-y divide-gray-100">
+              {rows.map((item) => (
+                <ResultRow
+                  key={item.id}
+                  item={item}
+                  onLink={onLink}
+                  onUnlink={onUnlink}
+                  onDelete={onDelete}
+                />
+              ))}
             </div>
           </div>
         ))
@@ -431,50 +419,41 @@ function TabAusentes({
         Inscrições com status "aprovado" cujo nome não foi encontrado no PDF da escola correspondente.
         Você pode adicioná-las manualmente ao PDF.
       </p>
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
-        <table className="w-full text-sm bg-white">
-          <thead>
-            <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wide">
-              <th className="px-3 py-2">Protocolo</th>
-              <th className="px-3 py-2">Nome</th>
-              <th className="px-3 py-2">Escola (inscrição)</th>
-              <th className="px-3 py-2">Escola PDF</th>
-              <th className="px-3 py-2 text-right">Ação</th>
-            </tr>
-          </thead>
-          <tbody>
-            {missing.map((entry) => (
-              <tr key={entry.submission_id} className="border-b border-gray-100 hover:bg-gray-50">
-                <td className="px-3 py-2.5 font-mono text-xs text-gray-500">{entry.protocol}</td>
-                <td className="px-3 py-2.5 font-medium text-gray-900">{entry.nome_inscricao}</td>
-                <td className="px-3 py-2.5 text-gray-600 text-xs">{entry.escola_inscricao ?? "—"}</td>
-                <td className="px-3 py-2.5">
-                  <input
-                    type="text"
-                    placeholder="Nome exato da escola no PDF"
-                    value={escolaMap[entry.submission_id] ?? entry.escola_inscricao ?? ""}
-                    onChange={(e) =>
-                      setEscolaMap((prev) => ({ ...prev, [entry.submission_id]: e.target.value }))
-                    }
-                    className="text-xs border border-gray-300 rounded px-2 py-1 w-52 focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </td>
-                <td className="px-3 py-2.5 text-right">
-                  <button
-                    onClick={() => handleAdd(entry)}
-                    disabled={adding.has(entry.submission_id)}
-                    className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 ml-auto"
-                  >
-                    {adding.has(entry.submission_id)
-                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      : <Plus className="w-3.5 h-3.5" />}
-                    Adicionar ao PDF
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="space-y-3">
+        {missing.map((entry) => (
+          <div key={entry.submission_id} className="bg-white border border-gray-200 rounded-lg p-3 hover:bg-gray-50">
+            <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="min-w-0">
+                <p className="font-medium text-sm text-gray-900 break-words">{entry.nome_inscricao}</p>
+                <p className="font-mono text-xs text-gray-400 mt-0.5">{entry.protocol}</p>
+                {entry.escola_inscricao && (
+                  <p className="text-xs text-gray-500 mt-0.5">{entry.escola_inscricao}</p>
+                )}
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <input
+                type="text"
+                placeholder="Nome exato da escola no PDF"
+                value={escolaMap[entry.submission_id] ?? entry.escola_inscricao ?? ""}
+                onChange={(e) =>
+                  setEscolaMap((prev) => ({ ...prev, [entry.submission_id]: e.target.value }))
+                }
+                className="flex-1 min-w-[160px] text-xs border border-gray-300 rounded px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+              <button
+                onClick={() => handleAdd(entry)}
+                disabled={adding.has(entry.submission_id)}
+                className="shrink-0 flex items-center gap-1 text-xs px-2.5 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+              >
+                {adding.has(entry.submission_id)
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <Plus className="w-3.5 h-3.5" />}
+                Adicionar ao PDF
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -585,44 +564,31 @@ function TabSemInscricao({
         Entradas importadas do PDF que não possuem nenhuma inscrição correspondente no sistema
         (nenhum candidato com similaridade ≥ 60%).
       </p>
-      <div className="overflow-x-auto rounded-lg border border-gray-200">
-        <table className="w-full text-sm bg-white">
-          <thead>
-            <tr className="bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wide">
-              <th className="px-3 py-2">#</th>
-              <th className="px-3 py-2">Nome no PDF</th>
-              <th className="px-3 py-2">Escola</th>
-              <th className="px-3 py-2">Resultado</th>
-              <th className="px-3 py-2 text-right">Ação</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item, idx) => (
-              <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
-                <td className="px-3 py-2.5 text-gray-400 text-xs">{idx + 1}</td>
-                <td className="px-3 py-2.5 font-medium text-gray-900">{item.nome_completo}</td>
-                <td className="px-3 py-2.5 text-gray-600 text-xs">{item.escola}</td>
-                <td className="px-3 py-2.5">
-                  {item.resultado === "aprovado"
-                    ? <span className="text-xs font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded">Aprovado</span>
-                    : <span className="text-xs font-semibold text-yellow-700 bg-yellow-100 px-1.5 py-0.5 rounded">Reserva</span>}
-                </td>
-                <td className="px-3 py-2.5 text-right">
-                  <button
-                    onClick={async () => {
-                      if (!confirm(`Remover "${item.nome_completo}" da lista?`)) return;
-                      await onDelete(item.id);
-                    }}
-                    className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-red-100 hover:bg-red-200 text-red-700 ml-auto"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Remover
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="space-y-3">
+        {items.map((item, idx) => (
+          <div key={item.id} className="bg-white border border-gray-200 rounded-lg p-3 flex items-start justify-between gap-3 hover:bg-gray-50">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <span className="text-xs text-gray-400">#{idx + 1}</span>
+                {item.resultado === "aprovado"
+                  ? <span className="text-xs font-semibold text-green-700 bg-green-100 px-1.5 py-0.5 rounded">Aprovado</span>
+                  : <span className="text-xs font-semibold text-yellow-700 bg-yellow-100 px-1.5 py-0.5 rounded">Reserva</span>}
+              </div>
+              <p className="font-medium text-sm text-gray-900 break-words">{item.nome_completo}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{item.escola}</p>
+            </div>
+            <button
+              onClick={async () => {
+                if (!confirm(`Remover "${item.nome_completo}" da lista?`)) return;
+                await onDelete(item.id);
+              }}
+              className="shrink-0 flex items-center gap-1 text-xs px-2 py-1 rounded bg-red-100 hover:bg-red-200 text-red-700"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Remover</span>
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -735,19 +701,20 @@ export default function ResultadosAdminPage() {
 
   return (
     <AdminLayout contentClassName="max-w-7xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-xl font-bold text-gray-900">Resultados PDF</h1>
           <p className="text-sm text-gray-500 mt-0.5">Vinculação entre entradas do PDF e inscrições do sistema</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleBulkApprove}
             disabled={bulkApproving || loading}
             className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
           >
             {bulkApproving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckSquare className="w-4 h-4" />}
-            Deferir aprovados
+            <span className="hidden sm:inline">Deferir aprovados</span>
+            <span className="sm:hidden">Deferir</span>
           </button>
           <button
             onClick={handleAutoLink}
@@ -755,51 +722,53 @@ export default function ResultadosAdminPage() {
             className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
           >
             {autoLinking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-            Vincular automaticamente
+            <span className="hidden sm:inline">Vincular automaticamente</span>
+            <span className="sm:hidden">Vincular</span>
           </button>
           <button
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg bg-primary text-white hover:bg-primary/90"
           >
             <Plus className="w-4 h-4" />
-            Adicionar entrada
+            <span className="hidden sm:inline">Adicionar entrada</span>
+            <span className="sm:hidden">Adicionar</span>
           </button>
           <button
             onClick={fetchData}
             disabled={loading}
+            title="Atualizar"
             className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "↻"}
-            Atualizar
           </button>
         </div>
       </div>
 
       {/* Auto-link result banner */}
       {autoLinkResult && (
-        <div className="mb-4 flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2.5 text-sm text-indigo-800">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-2 bg-indigo-50 border border-indigo-200 rounded-lg px-4 py-2.5 text-sm text-indigo-800">
           <span>
             <strong>{autoLinkResult.linked}</strong> vinculações realizadas,{" "}
             <strong>{autoLinkResult.skipped}</strong> sem candidato suficiente (score &lt; 80%).
           </span>
-          <button onClick={() => setAutoLinkResult(null)} className="ml-4 text-indigo-500 hover:text-indigo-700 font-bold">×</button>
+          <button onClick={() => setAutoLinkResult(null)} className="shrink-0 text-indigo-500 hover:text-indigo-700 font-bold">×</button>
         </div>
       )}
 
       {/* Bulk-approve result banner */}
       {bulkApproveResult && (
-        <div className="mb-4 flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-4 py-2.5 text-sm text-green-800">
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-2 bg-green-50 border border-green-200 rounded-lg px-4 py-2.5 text-sm text-green-800">
           <span>
             <strong>{bulkApproveResult.approved}</strong> inscrições deferidas,{" "}
             <strong>{bulkApproveResult.reserved}</strong> marcadas como reserva,{" "}
             <strong>{bulkApproveResult.alreadyDone}</strong> já estavam atualizadas.
           </span>
-          <button onClick={() => setBulkApproveResult(null)} className="ml-4 text-green-500 hover:text-green-700 font-bold">×</button>
+          <button onClick={() => setBulkApproveResult(null)} className="shrink-0 text-green-500 hover:text-green-700 font-bold">×</button>
         </div>
       )}
 
       {/* Tabs */}
-      <div className="flex border-b border-gray-200 mb-6 gap-0">
+      <div className="flex overflow-x-auto border-b border-gray-200 mb-6 gap-0 -mx-4 px-4 sm:mx-0 sm:px-0">
         {tabs.map((t) => (
           <button
             key={t.id}
