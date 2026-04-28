@@ -29,6 +29,7 @@ import {
   type FormRow,
   type SubmissionStatus,
   type ConflictResolutionResult,
+  type ExportOptions,
 } from "@/api/admin";
 import { apiListSchoolGroups, type SchoolGroup } from "@/api/admin";
 // ─── Resolve conflicts modal ───────────────────────────────────────────────────────────
@@ -298,7 +299,16 @@ export default function DashboardPage() {
     setExporting(true);
     setExportError("");
     try {
-      const blob = await apiExportSubmissions(accessToken, formId);
+      const opts: ExportOptions = {
+        formId,
+        status,
+        search: search || undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+        schoolGroupId,
+        shiftConflict: shiftConflict || undefined,
+      };
+      const blob = await apiExportSubmissions(accessToken, opts);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -419,7 +429,7 @@ export default function DashboardPage() {
           <button
             onClick={handleExport}
             disabled={exporting}
-            title={formId ? "Exportar turma filtrada" : "Exportar todas as inscrições"}
+            title={(formId || status || search || dateFrom || dateTo || schoolGroupId || shiftConflict) ? "Exportar inscrições filtradas" : "Exportar todas as inscrições"}
             className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-60"
           >
             {exporting ? (

@@ -493,13 +493,29 @@ export async function apiUpdateSettings(
   return json as SiteSettingsAdmin;
 }
 
+export interface ExportOptions {
+  formId?: number;
+  status?: SubmissionStatus;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  schoolGroupId?: number;
+  shiftConflict?: boolean;
+}
+
 export async function apiExportSubmissions(
   token: string,
-  formId?: number
+  opts: ExportOptions = {}
 ): Promise<Blob> {
-  const url = formId
-    ? `/api/admin/submissions/export?formId=${formId}`
-    : `/api/admin/submissions/export`;
+  const qs = new URLSearchParams();
+  if (opts.formId)        qs.set("formId",        String(opts.formId));
+  if (opts.status)        qs.set("status",         opts.status);
+  if (opts.search)        qs.set("search",         opts.search);
+  if (opts.dateFrom)      qs.set("dateFrom",       opts.dateFrom);
+  if (opts.dateTo)        qs.set("dateTo",         opts.dateTo);
+  if (opts.schoolGroupId) qs.set("schoolGroupId",  String(opts.schoolGroupId));
+  if (opts.shiftConflict) qs.set("shiftConflict",  "true");
+  const url = `/api/admin/submissions/export${qs.toString() ? `?${qs.toString()}` : ""}`;
   const res = await fetch(url, { headers: buildAuthHeaders(token) });
   if (!res.ok) throw new Error("Erro ao exportar inscrições.");
   return res.blob();

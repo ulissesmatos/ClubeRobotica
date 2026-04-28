@@ -35,6 +35,7 @@ import {
   getSubmissionsExportData,
   VALID_STATUSES,
   SubmissionStatus,
+  ExportFilters,
 } from "../services/submissions.service";
 import { getSettings, updateSettings } from "../services/settings.service";
 import { getDb, DB_PATH, closeDb } from "../db/database";
@@ -590,25 +591,51 @@ export async function adminRoutes(app: FastifyInstance) {
   // ─── Export Excel ─────────────────────────────────────────────────────────────
 
   /**
-   * GET /api/admin/submissions/export[?formId=N]
-   * Gera e retorna um arquivo .xlsx com todas as inscrições (ou só de um formulário).
-   * Cada formulário vira uma aba separada na planilha.
+   * GET /api/admin/submissions/export[?formId=N&status=X&search=Y&dateFrom=Z&dateTo=W&schoolGroupId=G&shiftConflict=true]
+   * Gera e retorna um arquivo .xlsx com as inscrições respeitando os filtros ativos.
    */
   app.get(
     "/submissions/export",
-    async (request: FastifyRequest<{ Querystring: { formId?: string } }>, reply) => {
+    async (
+      request: FastifyRequest<{
+        Querystring: {
+          formId?: string;
+          status?: string;
+          search?: string;
+          dateFrom?: string;
+          dateTo?: string;
+          schoolGroupId?: string;
+          shiftConflict?: string;
+        };
+      }>,
+      reply
+    ) => {
       const XLSX = await import("xlsx");
 
-      const formId = request.query.formId ? parseInt(request.query.formId, 10) : undefined;
+      const q = request.query;
+      const formId = q.formId ? parseInt(q.formId, 10) : undefined;
       if (formId !== undefined && isNaN(formId)) {
         return reply.status(400).send({ error: "Bad Request", message: "formId inválido." });
       }
+      const schoolGroupId = q.schoolGroupId ? parseInt(q.schoolGroupId, 10) : undefined;
+
+      const filters: ExportFilters = {
+        formId,
+        status: (VALID_STATUSES as readonly string[]).includes(q.status ?? "")
+          ? (q.status as SubmissionStatus)
+          : undefined,
+        search: q.search || undefined,
+        dateFrom: q.dateFrom || undefined,
+        dateTo: q.dateTo || undefined,
+        schoolGroupId: schoolGroupId && !isNaN(schoolGroupId) ? schoolGroupId : undefined,
+        shiftConflict: q.shiftConflict === "true",
+      };
 
       const proto = request.headers["x-forwarded-proto"] ?? request.protocol;
       const host = request.headers["x-forwarded-host"] ?? request.hostname;
       const baseUrl = `${proto}://${host}`;
 
-      const sheets = getSubmissionsExportData(formId, baseUrl);
+      const sheets = getSubmissionsExportData(filters, baseUrl);
 
       const wb = XLSX.utils.book_new();
 

@@ -687,8 +687,19 @@ export interface ExportSheetData {
   rows: string[][];
 }
 
-export function getSubmissionsExportData(formId?: number, baseUrl?: string): ExportSheetData[] {
+export interface ExportFilters {
+  formId?: number;
+  status?: SubmissionStatus;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  schoolGroupId?: number;
+  shiftConflict?: boolean;
+}
+
+export function getSubmissionsExportData(filters: ExportFilters = {}, baseUrl?: string): ExportSheetData[] {
   const db = getDb();
+  const { formId, status, search, dateFrom, dateTo, schoolGroupId, shiftConflict } = filters;
 
   const formRows = formId
     ? (db.prepare("SELECT id, title FROM forms WHERE id = ?").all(formId) as { id: number; title: string }[])
@@ -698,19 +709,75 @@ export function getSubmissionsExportData(formId?: number, baseUrl?: string): Exp
     pendente: "Pendente",
     aprovado: "Deferido",
     rejeitado: "Indeferido",
+    reserva: "Reserva",
   };
+
+  // Build shared extra conditions (applied per-form besides form_id = ?)
+  const extraConditions: string[] = [];
+  const extraParams: (string | number)[] = [];
+
+  if (status) {
+    extraConditions.push("s.status = ?");
+    extraParams.push(status);
+  }
+  if (dateFrom) {
+    extraConditions.push("s.submitted_at >= ?");
+    extraParams.push(dateFrom);
+  }
+  if (dateTo) {
+    extraConditions.push("s.submitted_at <= ?");
+    extraParams.push(dateTo + " 23:59:59");
+  }
+  if (search) {
+    extraConditions.push(`(s.protocol LIKE ? OR EXISTS (
+      SELECT 1 FROM submission_data sd_s
+      WHERE sd_s.submission_id = s.id AND sd_s.value_text LIKE ?
+    ))`);
+    extraParams.push(`%${search}%`, `%${search}%`);
+  }
+  if (schoolGroupId) {
+    extraConditions.push(`EXISTS (
+      SELECT 1 FROM submission_data sd2
+      JOIN school_aliases sa ON LOWER(TRIM(sa.raw_name)) = LOWER(TRIM(sd2.value_text))
+      WHERE sd2.submission_id = s.id
+        AND sd2.field_name LIKE '%escola%'
+        AND sa.group_id = ?
+    )`);
+    extraParams.push(schoolGroupId);
+  }
+  if (shiftConflict) {
+    extraConditions.push(`(
+      ((SELECT title FROM forms WHERE id = s.form_id) LIKE '%Manh%' AND EXISTS (
+        SELECT 1 FROM submission_data sd_sc
+        WHERE sd_sc.submission_id = s.id
+          AND sd_sc.field_name = 'turno'
+          AND sd_sc.value_text = 'Matutino'
+      ))
+      OR
+      ((SELECT title FROM forms WHERE id = s.form_id) LIKE '%Tarde%' AND EXISTS (
+        SELECT 1 FROM submission_data sd_sc
+        WHERE sd_sc.submission_id = s.id
+          AND sd_sc.field_name = 'turno'
+          AND sd_sc.value_text = 'Vespertino'
+      ))
+    )`);
+  }
+
+  const extraWhere = extraConditions.length
+    ? " AND " + extraConditions.join(" AND ")
+    : "";
 
   const result: ExportSheetData[] = [];
 
   for (const form of formRows) {
     const submissions = db
       .prepare(`
-        SELECT id, protocol, status, submitted_at
-        FROM submissions
-        WHERE form_id = ?
-        ORDER BY submitted_at ASC
+        SELECT s.id, s.protocol, s.status, s.submitted_at
+        FROM submissions s
+        WHERE s.form_id = ?${extraWhere}
+        ORDER BY s.submitted_at ASC
       `)
-      .all(form.id) as { id: number; protocol: string; status: string; submitted_at: string }[];
+      .all(form.id, ...extraParams) as { id: number; protocol: string; status: string; submitted_at: string }[];
 
     if (submissions.length === 0) continue;
 
