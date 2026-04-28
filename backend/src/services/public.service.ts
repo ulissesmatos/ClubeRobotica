@@ -36,6 +36,7 @@ function looksLikeCpf(q: string): boolean {
  * Base SELECT that reads directly from submissions (status = 'aprovado' | 'reserva').
  * The `resultado` column is derived from the submission status.
  * Turma info is joined when available.
+ * escola priority: public_results.escola (PDF — robotics school) → submission nome_escola (fallback)
  */
 function baseSelect() {
   return `
@@ -44,8 +45,11 @@ function baseSelect() {
       (SELECT sd.value_text FROM submission_data sd
          WHERE sd.submission_id = s.id AND sd.field_name = 'nome_completo' LIMIT 1
       ) AS nome_completo,
-      (SELECT sd.value_text FROM submission_data sd
-         WHERE sd.submission_id = s.id AND sd.field_name = 'nome_escola' LIMIT 1
+      COALESCE(
+        (SELECT pr.escola FROM public_results pr
+           WHERE pr.submission_id = s.id LIMIT 1),
+        (SELECT sd.value_text FROM submission_data sd
+           WHERE sd.submission_id = s.id AND sd.field_name = 'nome_escola' LIMIT 1)
       ) AS escola,
       s.status AS resultado,
       t.name        AS turma_name,
