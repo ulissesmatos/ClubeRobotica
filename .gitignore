@@ -12,6 +12,7 @@ dist/
 # Runtime data (SQLite + uploads) — never commit
 backend/data/
 backend/uploads/
+*.bak
 
 # Logs
 *.log
