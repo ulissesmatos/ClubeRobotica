@@ -14,6 +14,7 @@ import SchoolsPage from "./pages/admin/SchoolsPage.tsx";
 import TurmasPage from "./pages/admin/TurmasPage.tsx";
 import TurmaDetailPage from "./pages/admin/TurmaDetailPage.tsx";
 import ResultadoPage from "./pages/ResultadoPage.tsx";
+import ResultadosAdminPage from "./pages/admin/ResultadosAdminPage.tsx";
 import { AuthProvider, useAuth } from "./context/AuthContext.tsx";
 import { SettingsProvider } from "./context/SettingsContext.tsx";
 import "./index.css";
@@ -50,6 +51,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="forms/:id" element={<FormEditorPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="schools" element={<SchoolsPage />} />
+            <Route path="resultados" element={<ResultadosAdminPage />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
         </Routes>

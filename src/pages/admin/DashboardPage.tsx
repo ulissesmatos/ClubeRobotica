@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Download,
   ArrowRightLeft,
+  AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -119,9 +120,10 @@ function StatusBadge({ status }: { status: string }) {
     pendente:  "bg-amber-100 text-amber-800 border-amber-200",
     aprovado:  "bg-green-100 text-green-800 border-green-200",
     rejeitado: "bg-red-100 text-red-800 border-red-200",
+    reserva:   "bg-blue-100 text-blue-800 border-blue-200",
   };
   const labels: Record<string, string> = {
-    pendente: "Pendente", aprovado: "Deferido", rejeitado: "Indeferido",
+    pendente: "Pendente", aprovado: "Deferido", rejeitado: "Indeferido", reserva: "Reserva",
   };
   return (
     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${map[status] ?? "bg-muted text-muted-foreground"}`}>
@@ -448,13 +450,14 @@ export default function DashboardPage() {
 
         {/* Expandable filters */}
         {showFilters && (
-          <div className="px-5 pb-3 pt-3 border-b border-border bg-muted/30 flex flex-wrap gap-3 items-end">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Escola</label>
+          <div className="px-5 py-2 border-b border-border bg-muted/20 flex flex-wrap items-center gap-x-3 gap-y-2">
+            {/* Escola */}
+            <div className="flex items-center gap-1.5">
+              <label className="text-xs text-muted-foreground whitespace-nowrap">Escola</label>
               <select
                 value={schoolGroupId ?? ""}
                 onChange={(e) => updateParams({ schoolGroupId: e.target.value || undefined })}
-                className="w-40 px-2 py-1.5 border border-border rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                className="h-8 pl-2 pr-6 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary/30 bg-white max-w-[140px]"
               >
                 <option value="">Todas</option>
                 {groups.map((g) => (
@@ -463,12 +466,13 @@ export default function DashboardPage() {
               </select>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Formulário</label>
+            {/* Formulário */}
+            <div className="flex items-center gap-1.5">
+              <label className="text-xs text-muted-foreground whitespace-nowrap">Formulário</label>
               <select
                 value={formId ?? ""}
                 onChange={(e) => updateParams({ formId: e.target.value || undefined })}
-                className="w-40 px-2 py-1.5 border border-border rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                className="h-8 pl-2 pr-6 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary/30 bg-white max-w-[140px]"
               >
                 <option value="">Todos</option>
                 {forms.map((f) => (
@@ -477,77 +481,81 @@ export default function DashboardPage() {
               </select>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Status</label>
+            {/* Status */}
+            <div className="flex items-center gap-1.5">
+              <label className="text-xs text-muted-foreground whitespace-nowrap">Status</label>
               <select
                 value={status ?? ""}
                 onChange={(e) => updateParams({ status: e.target.value || undefined })}
-                className="w-32 px-2 py-1.5 border border-border rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                className="h-8 pl-2 pr-6 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary/30 bg-white"
               >
                 <option value="">Todos</option>
                 <option value="pendente">Pendente</option>
                 <option value="aprovado">Deferido</option>
                 <option value="rejeitado">Indeferido</option>
+                <option value="reserva">Reserva</option>
               </select>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">De</label>
+            {/* De / Até */}
+            <div className="flex items-center gap-1.5">
+              <label className="text-xs text-muted-foreground">De</label>
               <input
                 type="date"
                 value={dateFrom}
                 onChange={(e) => updateParams({ dateFrom: e.target.value || undefined })}
-                className="w-36 px-2 py-1.5 border border-border rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                className="h-8 px-2 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary/30 w-32"
               />
             </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Até</label>
+            <div className="flex items-center gap-1.5">
+              <label className="text-xs text-muted-foreground">Até</label>
               <input
                 type="date"
                 value={dateTo}
                 onChange={(e) => updateParams({ dateTo: e.target.value || undefined })}
-                className="w-36 px-2 py-1.5 border border-border rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary/20"
+                className="h-8 px-2 border border-border rounded-lg text-xs outline-none focus:ring-1 focus:ring-primary/30 w-32"
               />
             </div>
 
             <button
               onClick={clearFilters}
-              className="px-3 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
               Limpar
             </button>
 
-            {/* Turno conflitante + corrigir automaticamente — só aparece se há conflitos */}
+            {/* Spacer */}
+            <div className="flex-1" />
+
+            {/* Turno conflitante — só aparece se há conflitos */}
             {(conflictCount === null || conflictCount > 0) && (
-              <div className="ml-auto flex items-center gap-2">
+              <div className="flex items-center gap-1.5 pl-3 border-l border-border">
                 <button
                   onClick={() => updateParams({ shiftConflict: shiftConflict ? undefined : "true" })}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                  className={`h-8 flex items-center gap-1.5 px-2.5 rounded-lg border text-xs font-medium transition-colors ${
                     shiftConflict
                       ? "bg-orange-100 border-orange-300 text-orange-700"
-                      : "border-border text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      : "border-border text-muted-foreground hover:border-orange-200 hover:text-orange-600"
                   }`}
-                  title="Mostra alunos cujo turno escolar é igual ao turno das aulas de robótica"
+                  title="Filtrar alunos cujo turno escolar conflita com o horário das aulas de robótica"
                 >
-                  <span>⚠️</span>
-                  Turno conflitante
-                  {conflictCount !== null && !shiftConflict && (
-                    <span className="bg-orange-500 text-white text-xs rounded-full px-1.5 py-0.5 ml-1">{conflictCount}</span>
-                  )}
-                  {shiftConflict && <span className="bg-orange-500 text-white text-xs rounded-full px-1.5 py-0.5 ml-1">ativo</span>}
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  Conflitante
+                  <span className="bg-orange-500 text-white text-[10px] font-bold rounded-full min-w-[1rem] h-4 flex items-center justify-center px-1">
+                    {shiftConflict ? "on" : (conflictCount ?? "·")}
+                  </span>
                 </button>
 
                 <button
                   onClick={handleResolvePreview}
                   disabled={resolveLoading}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg border border-orange-300 bg-orange-50 text-orange-700 text-sm font-medium hover:bg-orange-100 transition-colors disabled:opacity-60"
+                  className="h-8 flex items-center gap-1.5 px-2.5 rounded-lg border border-orange-300 bg-orange-50 text-orange-700 text-xs font-medium hover:bg-orange-100 transition-colors disabled:opacity-60"
                   title="Corrigir automaticamente todos os conflitos de turno"
                 >
                   {resolveLoading
-                    ? <Loader2 className="w-4 h-4 animate-spin" />
-                    : <ArrowRightLeft className="w-4 h-4" />}
-                  Corrigir automaticamente
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <ArrowRightLeft className="w-3.5 h-3.5" />}
+                  Corrigir
                 </button>
               </div>
             )}

@@ -44,14 +44,16 @@ function StatusBadge({ status }: { status: string }) {
     pendente:  "bg-amber-100 text-amber-800 border-amber-200",
     aprovado:  "bg-green-100 text-green-800 border-green-200",
     rejeitado: "bg-red-100 text-red-800 border-red-200",
+    reserva:   "bg-blue-100 text-blue-800 border-blue-200",
   };
   const icons: Record<string, React.ReactNode> = {
     pendente:  <Clock className="w-3 h-3" />,
     aprovado:  <CheckCircle className="w-3 h-3" />,
     rejeitado: <XCircle className="w-3 h-3" />,
+    reserva:   <Clock className="w-3 h-3" />,
   };
   const labels: Record<string, string> = {
-    pendente: "Pendente", aprovado: "Deferido", rejeitado: "Indeferido",
+    pendente: "Pendente", aprovado: "Deferido", rejeitado: "Indeferido", reserva: "Reserva",
   };
   return (
     <span className={`inline-flex items-center gap-1 text-sm font-semibold px-3 py-1 rounded-full border ${map[status] ?? "bg-muted text-muted-foreground"}`}>
@@ -916,6 +918,7 @@ export default function SubmissionDetailPage() {
                 <option value="pendente">Pendente</option>
                 <option value="aprovado">Deferido</option>
                 <option value="rejeitado">Indeferido</option>
+                <option value="reserva">Reserva</option>
               </select>
               {statusSaving && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
               {statusSaved  && <CheckCircle className="w-4 h-4 text-green-600" />}

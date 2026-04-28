@@ -38,6 +38,16 @@ import {
 } from "../services/submissions.service";
 import { getSettings, updateSettings } from "../services/settings.service";
 import { getDb, DB_PATH, closeDb } from "../db/database";
+import {
+  getResultsWithCandidates,
+  getDuplicates,
+  getMissing,
+  getUnmatched,
+  autoLinkAll,
+  bulkApproveFromPdf,
+  normalizeStr,
+  type MatchStatus,
+} from "../services/results-matching.service";
 
 // ─── Schemas Zod ─────────────────────────────────────────────────────────────
 
@@ -99,6 +109,25 @@ function formatField(f: FormFieldRow) {
     options_json: undefined,
   };
 }
+
+// ─── Schemas Resultados ────────────────────────────────────────────────────────
+
+const linkResultadoSchema = z.object({
+  submissionId: z.number().int().positive(),
+});
+
+const addResultadoSchema = z.object({
+  nome_completo: z.string().min(1).max(300),
+  escola: z.string().min(1).max(300),
+  resultado: z.enum(["aprovado", "cadastro_reserva"]),
+});
+
+const updateResultadoSchema = z.object({
+  nome_completo: z.string().min(1).max(300).optional(),
+  escola: z.string().min(1).max(300).optional(),
+  resultado: z.enum(["aprovado", "cadastro_reserva"]).optional(),
+  match_status: z.enum(["pending", "confirmed", "rejected", "manual"]).optional(),
+});
 
 // ─── Plugin ───────────────────────────────────────────────────────────────────
 
@@ -288,7 +317,7 @@ export async function adminRoutes(app: FastifyInstance) {
 
   const listSubmissionsQuerySchema = z.object({
     formId:        z.coerce.number().int().positive().optional(),
-    status:        z.enum(["pendente", "aprovado", "rejeitado"]).optional(),
+    status:        z.enum(["pendente", "aprovado", "rejeitado", "reserva"]).optional(),
     search:        z.string().max(200).optional(),
     dateFrom:      z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     dateTo:        z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -339,7 +368,7 @@ export async function adminRoutes(app: FastifyInstance) {
   );
 
   const updateStatusSchema = z.object({
-    status: z.enum(["pendente", "aprovado", "rejeitado"]),
+    status: z.enum(["pendente", "aprovado", "rejeitado", "reserva"]),
     rejection_reason: z.string().max(1000).optional(),
   });
 
@@ -840,4 +869,165 @@ export async function adminRoutes(app: FastifyInstance) {
       if (fs.existsSync(tmpExtract)) fs.rmSync(tmpExtract, { recursive: true, force: true });
     }
   });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // RESULTADOS PDF — matching / vinculação
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /** GET /api/admin/resultados — todos os resultados com candidatos, duplicatas e ausentes */
+  app.get("/resultados", async (request, reply) => {
+    const q = request.query as {
+      escola?: string;
+      match_status?: string;
+      resultado?: string;
+    };
+    const validStatuses: MatchStatus[] = ["pending", "confirmed", "rejected", "manual"];
+    const match_status = validStatuses.includes(q.match_status as MatchStatus)
+      ? (q.match_status as MatchStatus)
+      : undefined;
+    const resultado =
+      q.resultado === "aprovado" || q.resultado === "cadastro_reserva"
+        ? q.resultado
+        : undefined;
+
+    const results = getResultsWithCandidates({
+      escola: q.escola || undefined,
+      match_status: match_status || "",
+      resultado,
+    });
+    const duplicates = getDuplicates();
+    const missing = getMissing();
+    const unmatched = getUnmatched();
+    return reply.send({ results, duplicates, missing, unmatched });
+  });
+
+  /** POST /api/admin/resultados/:id/link — confirmar vinculação */
+  app.post<{ Params: { id: string } }>(
+    "/resultados/:id/link",
+    async (request, reply) => {
+      const id = parseId(request.params.id);
+      if (!id) return reply.status(400).send({ error: "ID inválido" });
+
+      const parsed = linkResultadoSchema.safeParse(request.body);
+      if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() });
+
+      const db = getDb();
+      const exists = db.prepare("SELECT id FROM public_results WHERE id = ?").get(id) as { id: number } | undefined;
+      if (!exists) return reply.status(404).send({ error: "Resultado não encontrado" });
+
+      db.prepare(`
+        UPDATE public_results
+        SET submission_id = ?, match_status = 'confirmed'
+        WHERE id = ?
+      `).run(parsed.data.submissionId, id);
+
+      return reply.send({ ok: true });
+    }
+  );
+
+  /** DELETE /api/admin/resultados/:id/link — remover vinculação */
+  app.delete<{ Params: { id: string } }>(
+    "/resultados/:id/link",
+    async (request, reply) => {
+      const id = parseId(request.params.id);
+      if (!id) return reply.status(400).send({ error: "ID inválido" });
+
+      const db = getDb();
+      const exists = db.prepare("SELECT id FROM public_results WHERE id = ?").get(id) as { id: number } | undefined;
+      if (!exists) return reply.status(404).send({ error: "Resultado não encontrado" });
+
+      db.prepare(`
+        UPDATE public_results
+        SET submission_id = NULL, match_status = 'rejected'
+        WHERE id = ?
+      `).run(id);
+
+      return reply.send({ ok: true });
+    }
+  );
+
+  /** POST /api/admin/resultados/bulk-approve — defere em massa as inscrições vinculadas como aprovado no PDF */
+  app.post("/resultados/bulk-approve", async (request, reply) => {
+    const result = bulkApproveFromPdf(request.user?.adminId ?? null);
+    return reply.send(result);
+  });
+
+  /** POST /api/admin/resultados/auto-link — vincula em massa pelo melhor score */
+  app.post("/resultados/auto-link", async (request, reply) => {
+    const body = (request.body ?? {}) as { minScore?: number };
+    const minScore = typeof body.minScore === "number" ? Math.min(Math.max(body.minScore, 50), 100) : 80;
+    const result = autoLinkAll(minScore);
+    return reply.send(result);
+  });
+
+  /** DELETE /api/admin/resultados/:id — remover entrada do PDF */
+  app.delete<{ Params: { id: string } }>(
+    "/resultados/:id",
+    async (request, reply) => {
+      const id = parseId(request.params.id);
+      if (!id) return reply.status(400).send({ error: "ID inválido" });
+
+      const db = getDb();
+      const exists = db.prepare("SELECT id FROM public_results WHERE id = ?").get(id) as { id: number } | undefined;
+      if (!exists) return reply.status(404).send({ error: "Resultado não encontrado" });
+
+      db.prepare("DELETE FROM public_results WHERE id = ?").run(id);
+      return reply.send({ ok: true });
+    }
+  );
+
+  /** POST /api/admin/resultados — adicionar nova entrada manualmente */
+  app.post("/resultados", async (request, reply) => {
+    const parsed = addResultadoSchema.safeParse(request.body);
+    if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() });
+
+    const db = getDb();
+    const { nome_completo, escola, resultado } = parsed.data;
+    const nome_normalizado = normalizeStr(nome_completo);
+
+    const row = db.prepare(`
+      INSERT INTO public_results (nome_completo, nome_normalizado, escola, resultado, match_status)
+      VALUES (?, ?, ?, ?, 'manual')
+      RETURNING *
+    `).get(nome_completo, nome_normalizado, escola, resultado) as Record<string, unknown>;
+
+    return reply.status(201).send({ result: row });
+  });
+
+  /** PUT /api/admin/resultados/:id — editar entrada */
+  app.put<{ Params: { id: string } }>(
+    "/resultados/:id",
+    async (request, reply) => {
+      const id = parseId(request.params.id);
+      if (!id) return reply.status(400).send({ error: "ID inválido" });
+
+      const parsed = updateResultadoSchema.safeParse(request.body);
+      if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() });
+
+      const db = getDb();
+      const existing = db.prepare("SELECT * FROM public_results WHERE id = ?").get(id) as Record<string, unknown> | undefined;
+      if (!existing) return reply.status(404).send({ error: "Resultado não encontrado" });
+
+      const fields = parsed.data;
+      const setClauses: string[] = [];
+      const values: unknown[] = [];
+
+      if (fields.nome_completo !== undefined) {
+        setClauses.push("nome_completo = ?", "nome_normalizado = ?");
+        values.push(fields.nome_completo, normalizeStr(fields.nome_completo));
+      }
+      if (fields.escola !== undefined) { setClauses.push("escola = ?"); values.push(fields.escola); }
+      if (fields.resultado !== undefined) { setClauses.push("resultado = ?"); values.push(fields.resultado); }
+      if (fields.match_status !== undefined) { setClauses.push("match_status = ?"); values.push(fields.match_status); }
+
+      if (setClauses.length === 0) return reply.status(400).send({ error: "Nenhum campo para atualizar" });
+
+      values.push(id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      db.prepare(`UPDATE public_results SET ${setClauses.join(", ")} WHERE id = ?`).run(...(values as any[]));
+
+      const updated = db.prepare("SELECT * FROM public_results WHERE id = ?").get(id) as Record<string, unknown>;
+      return reply.send({ result: updated });
+    }
+  );
 }

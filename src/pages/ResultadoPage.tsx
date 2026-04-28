@@ -4,12 +4,15 @@ import { apiSearchResultados, type PublicResultRow } from "@/api/public";
 
 function ResultCard({ r }: { r: PublicResultRow }) {
   const aprovado = r.resultado === "aprovado";
+  const reserva  = r.resultado === "reserva";
 
   return (
     <div
       className={`rounded-xl border p-5 flex flex-col gap-3 shadow-sm ${
         aprovado
           ? "border-green-200 bg-green-50"
+          : reserva
+          ? "border-blue-200 bg-blue-50"
           : "border-yellow-200 bg-yellow-50"
       }`}
     >
@@ -18,7 +21,7 @@ function ResultCard({ r }: { r: PublicResultRow }) {
         {aprovado ? (
           <CheckCircle2 className="w-6 h-6 text-green-600 mt-0.5 shrink-0" />
         ) : (
-          <Clock className="w-6 h-6 text-yellow-600 mt-0.5 shrink-0" />
+          <Clock className={`w-6 h-6 mt-0.5 shrink-0 ${reserva ? "text-blue-600" : "text-yellow-600"}`} />
         )}
         <div>
           <p className="font-bold text-foreground text-base leading-tight">{r.nome_completo}</p>
@@ -26,10 +29,12 @@ function ResultCard({ r }: { r: PublicResultRow }) {
             className={`inline-block mt-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
               aprovado
                 ? "bg-green-100 text-green-800"
+                : reserva
+                ? "bg-blue-100 text-blue-800"
                 : "bg-yellow-100 text-yellow-800"
             }`}
           >
-            {aprovado ? "APROVADO(A)" : "CADASTRO DE RESERVA"}
+            {aprovado ? "APROVADO(A)" : reserva ? "CADASTRO DE RESERVA" : "RESERVA"}
           </span>
         </div>
       </div>

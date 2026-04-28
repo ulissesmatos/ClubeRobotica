@@ -34,8 +34,8 @@ export interface SubmissionField {
   filePath: string | null;
 }
 
-export type SubmissionStatus = "pendente" | "aprovado" | "rejeitado";
-export const VALID_STATUSES: SubmissionStatus[] = ["pendente", "aprovado", "rejeitado"];
+export type SubmissionStatus = "pendente" | "aprovado" | "rejeitado" | "reserva";
+export const VALID_STATUSES: SubmissionStatus[] = ["pendente", "aprovado", "rejeitado", "reserva"];
 
 // ─── Upload ───────────────────────────────────────────────────────────────────
 

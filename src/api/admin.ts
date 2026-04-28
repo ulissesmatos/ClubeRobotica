@@ -78,7 +78,7 @@ export interface FormRow {
   created_at: string;
 }
 
-export type SubmissionStatus = "pendente" | "aprovado" | "rejeitado";
+export type SubmissionStatus = "pendente" | "aprovado" | "rejeitado" | "reserva";
 
 // ─── Auth endpoints (no token required) ──────────────────────────────────────
 

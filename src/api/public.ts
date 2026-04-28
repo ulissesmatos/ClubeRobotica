@@ -2,7 +2,7 @@ export interface PublicResultRow {
   id: number;
   nome_completo: string;
   escola: string;
-  resultado: "aprovado" | "cadastro_reserva";
+  resultado: "aprovado" | "reserva";
   turma_name: string | null;
   turma_day: string | null;
   turma_start: string | null;

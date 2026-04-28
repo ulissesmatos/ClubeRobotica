@@ -239,6 +239,12 @@ const MIGRATIONS: { name: string; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS idx_public_results_normalizado ON public_results(nome_normalizado);
     `,
   },
+  {
+    name: "013_public_results_match_status",
+    sql: `
+      ALTER TABLE public_results ADD COLUMN match_status TEXT NOT NULL DEFAULT 'pending';
+    `,
+  },
 ];
 
 export function runMigrations(): void {
