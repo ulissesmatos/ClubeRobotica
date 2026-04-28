@@ -13,6 +13,15 @@ interface Entry {
   resultado: Resultado;
 }
 
+function normalizeNome(str: string): string {
+  return str
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
 // ─── Dados extraídos dos PDFs oficiais ───────────────────────────────────────
 
 const ENTRIES: Entry[] = [
@@ -67,6 +76,8 @@ const ENTRIES: Entry[] = [
   { nome_completo: "JOSÉ ELIAS ALMERINDO CONCEIÇÃO",          escola: "Escola Modelo Remy Archer", resultado: "cadastro_reserva" },
   { nome_completo: "THAYNÁ DOS SANTOS GUIMARÃES",             escola: "Escola Modelo Remy Archer", resultado: "cadastro_reserva" },
   { nome_completo: "ANA CLARA DOS SANTOS GUIMARÃES",          escola: "Escola Modelo Remy Archer", resultado: "cadastro_reserva" },
+  { nome_completo: "DAVI LUCAS SOUSA ROCHA",                  escola: "Escola Modelo Remy Archer", resultado: "cadastro_reserva" },
+  { nome_completo: "LUIZ GUSTAVO GOMES PRADO",                escola: "Escola Modelo Remy Archer", resultado: "cadastro_reserva" },
   { nome_completo: "JOÃO MIGUEL SOUZA GOMES",                 escola: "Escola Modelo Remy Archer", resultado: "cadastro_reserva" },
   { nome_completo: "ERICK NOAH BASTOS MESQUITA",              escola: "Escola Modelo Remy Archer", resultado: "cadastro_reserva" },
   { nome_completo: "HEITOR SANTOS BARROS",                    escola: "Escola Modelo Remy Archer", resultado: "cadastro_reserva" },
@@ -351,11 +362,17 @@ export function seedPublicResults(): void {
   const db = getDb();
 
   const count = (db.prepare("SELECT COUNT(*) as c FROM public_results").get() as { c: number }).c;
-  if (count > 0) return; // já populado
+  if (count >= ENTRIES.length) return; // já totalmente populado
+
+  const checkExists = db.prepare(`
+    SELECT id FROM public_results
+    WHERE UPPER(nome_completo) = UPPER(?) AND escola = ? AND resultado = ?
+    LIMIT 1
+  `);
 
   const insert = db.prepare(`
-    INSERT INTO public_results (nome_completo, escola, resultado, submission_id)
-    VALUES (?, ?, ?, ?)
+    INSERT INTO public_results (nome_completo, escola, resultado, submission_id, nome_normalizado)
+    VALUES (?, ?, ?, ?, ?)
   `);
 
   // Try to find a matching submission for each student by normalized name
@@ -376,14 +393,20 @@ export function seedPublicResults(): void {
 
   try {
     for (const entry of ENTRIES) {
+      // Skip if already exists (preserves submission_id links)
+      const existing = checkExists.get(entry.nome_completo, entry.escola, entry.resultado) as { id: number } | undefined;
+      if (existing) continue;
+
       const sub = findSubmission.get(entry.nome_completo) as { id: number } | undefined;
       const submissionId = sub?.id ?? null;
       if (submissionId) matched++;
-      insert.run(entry.nome_completo, entry.escola, entry.resultado, submissionId);
+      insert.run(entry.nome_completo, entry.escola, entry.resultado, submissionId, normalizeNome(entry.nome_completo));
       inserted++;
     }
     db.exec("COMMIT");
-    console.log(`✅ Resultados públicos: ${inserted} registros inseridos, ${matched} vinculados a inscrições.`);
+    if (inserted > 0) {
+      console.log(`✅ Resultados públicos: ${inserted} novos registros inseridos, ${matched} vinculados a inscrições.`);
+    }
   } catch (err) {
     db.exec("ROLLBACK");
     console.error("❌ Erro ao semear resultados públicos:", err);

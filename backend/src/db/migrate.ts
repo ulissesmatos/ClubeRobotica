@@ -232,6 +232,13 @@ const MIGRATIONS: { name: string; sql: string }[] = [
       CREATE INDEX IF NOT EXISTS idx_public_results_submission ON public_results(submission_id);
     `,
   },
+  {
+    name: "012_public_results_normalized",
+    sql: `
+      ALTER TABLE public_results ADD COLUMN nome_normalizado TEXT NOT NULL DEFAULT '';
+      CREATE INDEX IF NOT EXISTS idx_public_results_normalizado ON public_results(nome_normalizado);
+    `,
+  },
 ];
 
 export function runMigrations(): void {

@@ -87,16 +87,16 @@ export function searchPublicResults(query: string): PublicResultRow[] {
     if (rows.length > 0) return rows;
   }
 
-  // ── 3. Search by name (LIKE, case-insensitive via UPPER) ─────────────────
+  // ── 3. Search by name (accent-insensitive via nome_normalizado) ─────────────
   const namePattern = `%${normalize(q)}%`;
   const rows = db
     .prepare(
       `${buildTurmaSelect()}
-       WHERE UPPER(REPLACE(REPLACE(TRIM(pr.nome_completo), '  ', ' '), '  ', ' ')) LIKE ?
+       WHERE pr.nome_normalizado LIKE ?
        ORDER BY
          CASE pr.resultado WHEN 'aprovado' THEN 0 ELSE 1 END,
          pr.nome_completo
-       LIMIT 10`
+       LIMIT 20`
     )
     .all(namePattern) as unknown as PublicResultRow[];
 
