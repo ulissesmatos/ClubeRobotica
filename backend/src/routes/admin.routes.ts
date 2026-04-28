@@ -340,6 +340,7 @@ export async function adminRoutes(app: FastifyInstance) {
 
   const updateStatusSchema = z.object({
     status: z.enum(["pendente", "aprovado", "rejeitado"]),
+    rejection_reason: z.string().max(1000).optional(),
   });
 
   /** PUT /api/admin/submissions/:id/status */
@@ -354,7 +355,19 @@ export async function adminRoutes(app: FastifyInstance) {
         return reply.status(400).send({ error: "Validation Error", message: parsed.error.errors[0].message });
       }
 
-      const ok = updateSubmissionStatus(id, parsed.data.status as SubmissionStatus);
+      if (parsed.data.status === "rejeitado" && !parsed.data.rejection_reason?.trim()) {
+        return reply.status(400).send({
+          error: "Validation Error",
+          message: "Motivo do indeferimento é obrigatório.",
+        });
+      }
+
+      const ok = updateSubmissionStatus(
+        id,
+        parsed.data.status as SubmissionStatus,
+        request.user.adminId,
+        parsed.data.rejection_reason
+      );
       if (!ok) return reply.status(404).send({ error: "Not Found", message: "Submissão não encontrada." });
 
       return reply.send({ message: "Status atualizado com sucesso." });

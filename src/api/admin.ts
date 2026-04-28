@@ -48,6 +48,11 @@ export interface SubmissionDetail {
   protocol: string;
   ip_address: string | null;
   user_agent: string | null;
+  rejection_reason: string | null;
+  reviewed_at: string | null;
+  reviewed_by: number | null;
+  turma_id: number | null;
+  turma_name: string | null;
   submitted_at: string;
   data: SubmissionDataRow[];
 }
@@ -180,14 +185,21 @@ export async function apiGetSubmission(
 export async function apiUpdateStatus(
   token: string,
   id: number,
-  status: SubmissionStatus
+  status: SubmissionStatus,
+  rejectionReason?: string
 ): Promise<void> {
   const res = await fetch(`/api/admin/submissions/${id}/status`, {
     method: "PUT",
     headers: { ...buildAuthHeaders(token), "Content-Type": "application/json" },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({
+      status,
+      rejection_reason: rejectionReason,
+    }),
   });
-  if (!res.ok) throw new Error("Erro ao atualizar status.");
+  if (!res.ok) {
+    const json = await res.json().catch(() => null);
+    throw new Error(json?.message ?? "Erro ao atualizar status.");
+  }
 }
 
 export async function apiDeleteSubmission(

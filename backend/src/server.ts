@@ -14,7 +14,10 @@ import { formsRoutes } from "./routes/forms.routes";
 import { submissionsRoutes } from "./routes/submissions.routes";
 import { adminRoutes } from "./routes/admin.routes";
 import { schoolsRoutes } from "./routes/schools.routes";
+import { turmasRoutes } from "./routes/turmas.routes";
+import { publicRoutes } from "./routes/public.routes";
 import { runMigrations } from "./db/migrate";
+import { seedPublicResults } from "./db/seed_public_results";
 
 // ─── Env validation ──────────────────────────────────────────────────────────
 const {
@@ -57,6 +60,7 @@ async function bootstrap() {
 
   // Run DB migrations on startup
   runMigrations();
+  seedPublicResults();
 
   // ── Security headers ──
   await app.register(helmet, {
@@ -111,6 +115,8 @@ async function bootstrap() {
   await app.register(submissionsRoutes, { prefix: "/api" });
   await app.register(adminRoutes, { prefix: "/api/admin" });
   await app.register(schoolsRoutes, { prefix: "/api/admin/schools" });
+  await app.register(turmasRoutes, { prefix: "/api/admin/turmas" });
+  await app.register(publicRoutes, { prefix: "/api/public" });
 
   // ── Global error handler ──
   app.setErrorHandler((error: FastifyError, _request, reply) => {

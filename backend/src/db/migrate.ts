@@ -164,6 +164,74 @@ const MIGRATIONS: { name: string; sql: string }[] = [
         ('phone_enabled',            '1');
     `,
   },
+  {
+    // Metadados de análise da inscrição.
+    // Permite registrar motivo do indeferimento e trilha básica de auditoria.
+    name: "008_submission_review_fields",
+    sql: `
+      ALTER TABLE submissions ADD COLUMN rejection_reason TEXT;
+      ALTER TABLE submissions ADD COLUMN reviewed_at TEXT;
+      ALTER TABLE submissions ADD COLUMN reviewed_by INTEGER REFERENCES admin_users(id);
+
+      CREATE INDEX IF NOT EXISTS idx_submissions_reviewed_by ON submissions(reviewed_by);
+    `,
+  },
+  {
+    // Turmas reais (alocação pós-deferimento) separadas dos formulários de inscrição.
+    name: "009_turmas",
+    sql: `
+      CREATE TABLE IF NOT EXISTS turmas (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        name         TEXT    NOT NULL,
+        form_id      INTEGER REFERENCES forms(id) ON DELETE SET NULL,
+        school_name  TEXT,
+        day_of_week  TEXT,
+        start_time   TEXT,
+        end_time     TEXT,
+        max_capacity INTEGER NOT NULL DEFAULT 20,
+        is_active    INTEGER NOT NULL DEFAULT 1,
+        created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+        updated_at   TEXT    NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE TABLE IF NOT EXISTS turma_enrollments (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        turma_id      INTEGER NOT NULL REFERENCES turmas(id) ON DELETE CASCADE,
+        submission_id INTEGER NOT NULL REFERENCES submissions(id) ON DELETE CASCADE,
+        notes         TEXT,
+        enrolled_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(submission_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_turmas_form_id ON turmas(form_id);
+      CREATE INDEX IF NOT EXISTS idx_turma_enrollments_turma ON turma_enrollments(turma_id);
+      CREATE INDEX IF NOT EXISTS idx_turma_enrollments_submission ON turma_enrollments(submission_id);
+    `,
+  },
+  {
+    name: "010_turmas_responsavel",
+    sql: `
+      ALTER TABLE turmas ADD COLUMN responsavel TEXT;
+    `,
+  },
+  {
+    // Resultados públicos importados dos PDFs oficiais de aprovação.
+    // Permite consulta pública por nome, protocolo ou CPF sem expor dados sensíveis.
+    name: "011_public_results",
+    sql: `
+      CREATE TABLE IF NOT EXISTS public_results (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome_completo TEXT NOT NULL,
+        escola        TEXT NOT NULL,
+        resultado     TEXT NOT NULL CHECK(resultado IN ('aprovado', 'cadastro_reserva')),
+        submission_id INTEGER REFERENCES submissions(id) ON DELETE SET NULL,
+        created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_public_results_nome       ON public_results(nome_completo COLLATE NOCASE);
+      CREATE INDEX IF NOT EXISTS idx_public_results_submission ON public_results(submission_id);
+    `,
+  },
 ];
 
 export function runMigrations(): void {

@@ -9,8 +9,12 @@ export interface SubmissionRow {
   id: number;
   form_id: number;
   status: "pendente" | "aprovado" | "rejeitado";
+  protocol: string;
   ip_address: string | null;
   user_agent: string | null;
+  rejection_reason: string | null;
+  reviewed_at: string | null;
+  reviewed_by: number | null;
   submitted_at: string;
 }
 
@@ -356,6 +360,8 @@ export function countSubmissionsByForm(): { form_id: number; count: number }[] {
 
 export interface SubmissionDetail extends SubmissionRow {
   form_title: string;
+  turma_id: number | null;
+  turma_name: string | null;
   data: SubmissionDataRow[];
 }
 
@@ -364,9 +370,15 @@ export function getSubmissionById(id: number): SubmissionDetail | null {
 
   const submission = db
     .prepare(`
-      SELECT s.*, f.title AS form_title
+      SELECT
+        s.*,
+        f.title AS form_title,
+        te.turma_id AS turma_id,
+        t.name AS turma_name
       FROM submissions s
       JOIN forms f ON f.id = s.form_id
+      LEFT JOIN turma_enrollments te ON te.submission_id = s.id
+      LEFT JOIN turmas t ON t.id = te.turma_id
       WHERE s.id = ?
     `)
     .get(id) as unknown as SubmissionDetail | undefined;
@@ -384,12 +396,23 @@ export function getSubmissionById(id: number): SubmissionDetail | null {
 
 export function updateSubmissionStatus(
   id: number,
-  status: SubmissionStatus
+  status: SubmissionStatus,
+  reviewedBy: number,
+  rejectionReason?: string
 ): boolean {
   const db = getDb();
+  const reason = status === "rejeitado" ? (rejectionReason?.trim() || null) : null;
   const result = db
-    .prepare("UPDATE submissions SET status = ? WHERE id = ?")
-    .run(status, id);
+    .prepare(`
+      UPDATE submissions
+      SET
+        status = ?,
+        rejection_reason = ?,
+        reviewed_at = datetime('now'),
+        reviewed_by = ?
+      WHERE id = ?
+    `)
+    .run(status, reason, reviewedBy, id);
   return result.changes > 0;
 }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Bot } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const navLinks = [
   { label: "Início", href: "#home" },
@@ -64,6 +65,14 @@ const Navbar = () => {
               {link.label}
             </button>
           ))}
+          <Link
+            to="/resultado"
+            className={`text-sm font-semibold transition-colors hover:text-secondary ${
+              scrolled ? "text-foreground" : "text-primary-foreground/90"
+            }`}
+          >
+            Resultados
+          </Link>
           <button
             onClick={() => scrollTo("#turmas")}
             className="bg-secondary text-secondary-foreground text-sm font-bold px-5 py-2 rounded-full hover:bg-secondary/90 transition-colors shadow"
@@ -109,6 +118,13 @@ const Navbar = () => {
                   {link.label}
                 </button>
               ))}
+              <Link
+                to="/resultado"
+                onClick={() => setMenuOpen(false)}
+                className="text-base font-semibold text-foreground text-left py-2.5 px-2 rounded-lg hover:bg-muted transition-colors block"
+              >
+                Resultados
+              </Link>
               <button
                 onClick={() => scrollTo("#turmas")}
                 className="mt-2 bg-secondary text-secondary-foreground font-bold px-5 py-3 rounded-full hover:bg-secondary/90 transition-colors"

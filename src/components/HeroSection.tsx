@@ -1,9 +1,10 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, FileText, CalendarDays } from "lucide-react";
+import { ChevronDown, FileText, CalendarDays, Trophy } from "lucide-react";
 import heroImage from "@/assets/hero-robotics.avif";
 import logosCodomSemecti from "@/assets/codó_e_semecti.webp";
 import { useSettings } from "@/context/SettingsContext";
+import { Link } from "react-router-dom";
 
 const HeroSection = () => {
   const { enrollments_status, enrollments_date_start, enrollments_date_end } = useSettings();
@@ -96,13 +97,22 @@ const HeroSection = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-            <Button
-              size="lg"
-              className="bg-secondary text-secondary-foreground hover:bg-secondary/90 font-bold text-base px-8 h-12 rounded-full shadow-lg"
-              onClick={() => scrollTo("turmas")}
+            <Link
+              to="/resultado"
+              className="group relative inline-flex items-center justify-center gap-2.5 px-8 h-12 rounded-full font-bold text-base text-white shadow-xl transition-all duration-300 hover:scale-105 hover:shadow-2xl overflow-hidden"
+              style={{
+                background: "linear-gradient(135deg, #f59e0b 0%, #ef4444 100%)",
+                boxShadow: "0 0 24px 4px rgba(245,158,11,0.45), 0 4px 18px rgba(0,0,0,0.25)",
+              }}
             >
-              Ver Turmas
-            </Button>
+              <span
+                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full"
+                style={{ background: "linear-gradient(135deg, #fbbf24 0%, #f87171 100%)" }}
+                aria-hidden
+              />
+              <Trophy className="w-5 h-5 relative z-10 drop-shadow" />
+              <span className="relative z-10">Consultar Resultados</span>
+            </Link>
             <Button
               size="lg"
               variant="outline"

@@ -11,6 +11,9 @@ import FormsPage from "./pages/admin/FormsPage.tsx";
 import FormEditorPage from "./pages/admin/FormEditorPage.tsx";
 import SettingsPage from "./pages/admin/SettingsPage.tsx";
 import SchoolsPage from "./pages/admin/SchoolsPage.tsx";
+import TurmasPage from "./pages/admin/TurmasPage.tsx";
+import TurmaDetailPage from "./pages/admin/TurmaDetailPage.tsx";
+import ResultadoPage from "./pages/ResultadoPage.tsx";
 import { AuthProvider, useAuth } from "./context/AuthContext.tsx";
 import { SettingsProvider } from "./context/SettingsContext.tsx";
 import "./index.css";
@@ -35,11 +38,14 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <SettingsProvider>
         <Routes>
           <Route path="/" element={<App />} />
+          <Route path="/resultado" element={<ResultadoPage />} />
           <Route path="/inscricao/:slug" element={<FormPage />} />
           <Route path="/admin/login" element={<LoginPage />} />
           <Route path="/admin" element={<PrivateRoute />}>
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="submissions/:id" element={<SubmissionDetailPage />} />
+            <Route path="turmas" element={<TurmasPage />} />
+            <Route path="turmas/:id" element={<TurmaDetailPage />} />
             <Route path="forms" element={<FormsPage />} />
             <Route path="forms/:id" element={<FormEditorPage />} />
             <Route path="settings" element={<SettingsPage />} />

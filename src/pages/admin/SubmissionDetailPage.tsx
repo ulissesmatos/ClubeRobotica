@@ -584,6 +584,57 @@ function DeleteModal({
   );
 }
 
+function RejectionReasonModal({
+  initialValue,
+  saving,
+  onCancel,
+  onConfirm,
+}: {
+  initialValue: string;
+  saving: boolean;
+  onCancel: () => void;
+  onConfirm: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState(initialValue);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-lg">
+        <h3 className="font-bold text-foreground mb-2">Motivo do indeferimento</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Informe de forma clara por que esta inscrição foi indeferida.
+        </p>
+
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          rows={5}
+          className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+          placeholder="Ex: documentação incompleta, divergência de dados, turma incompatível..."
+        />
+
+        <div className="flex justify-end gap-2 mt-4">
+          <button
+            onClick={onCancel}
+            disabled={saving}
+            className="px-4 py-2 rounded-lg border border-border text-sm hover:bg-muted disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => onConfirm(reason.trim())}
+            disabled={saving || !reason.trim()}
+            className="px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-semibold hover:opacity-90 disabled:opacity-50 inline-flex items-center gap-2"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+            Confirmar indeferimento
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── SubmissionDetailPage ─────────────────────────────────────────────────────
 
 export default function SubmissionDetailPage() {
@@ -598,6 +649,8 @@ export default function SubmissionDetailPage() {
   const [status,         setStatus]         = useState<SubmissionStatus>("pendente");
   const [statusSaving,   setStatusSaving]   = useState(false);
   const [statusSaved,    setStatusSaved]    = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [showRejectReasonModal, setShowRejectReasonModal] = useState(false);
 
   const [showDelete, setShowDelete] = useState(false);
   const [deleting,   setDeleting]   = useState(false);
@@ -622,6 +675,7 @@ export default function SubmissionDetailPage() {
       .then((s) => {
         setSubmission(s);
         setStatus(s.status as SubmissionStatus);
+        setRejectionReason(s.rejection_reason ?? "");
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
@@ -635,21 +689,36 @@ export default function SubmissionDetailPage() {
     apiListForms(accessToken).then(setForms).catch(() => {});
   }, [accessToken]);
 
-  async function handleStatusChange(newStatus: SubmissionStatus) {
+  async function persistStatus(newStatus: SubmissionStatus, reason?: string) {
     if (!accessToken || !id) return;
     setStatus(newStatus);
     setStatusSaving(true);
     setStatusSaved(false);
     try {
-      await apiUpdateStatus(accessToken, Number(id), newStatus);
+      await apiUpdateStatus(accessToken, Number(id), newStatus, reason);
       setStatusSaved(true);
       setTimeout(() => setStatusSaved(false), 2000);
+      await load();
     } catch {
       // revert
       setStatus(submission?.status as SubmissionStatus ?? "pendente");
     } finally {
       setStatusSaving(false);
     }
+  }
+
+  function handleStatusChange(newStatus: SubmissionStatus) {
+    if (newStatus === "rejeitado") {
+      setShowRejectReasonModal(true);
+      return;
+    }
+    void persistStatus(newStatus);
+  }
+
+  function handleConfirmRejection(reason: string) {
+    setShowRejectReasonModal(false);
+    setRejectionReason(reason);
+    void persistStatus("rejeitado", reason);
   }
 
   async function handleDelete() {
@@ -776,6 +845,17 @@ export default function SubmissionDetailPage() {
           deleting={deleting}
         />
       )}
+      {showRejectReasonModal && (
+        <RejectionReasonModal
+          initialValue={rejectionReason}
+          saving={statusSaving}
+          onCancel={() => {
+            setShowRejectReasonModal(false);
+            setStatus(submission.status as SubmissionStatus);
+          }}
+          onConfirm={handleConfirmRejection}
+        />
+      )}
       {showMove && submission && (
         <MoveFormModal
           forms={forms}
@@ -810,6 +890,18 @@ export default function SubmissionDetailPage() {
               Enviado em {new Date(submission.submitted_at + "Z").toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
               {submission.ip_address && ` · IP ${submission.ip_address}`}
             </p>
+            {submission.reviewed_at && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Revisado em {new Date(submission.reviewed_at + "Z").toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+              </p>
+            )}
+            {submission.turma_id && submission.turma_name && (
+              <p className="text-xs mt-1">
+                <Link to={`/admin/turmas/${submission.turma_id}`} className="text-primary hover:underline">
+                  Turma atual: {submission.turma_name}
+                </Link>
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
@@ -849,6 +941,15 @@ export default function SubmissionDetailPage() {
           </div>
         </div>
       </div>
+
+      {status === "rejeitado" && (submission.rejection_reason || rejectionReason) && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+          <h3 className="text-sm font-semibold text-red-700 mb-1">Motivo do indeferimento</h3>
+          <p className="text-sm text-red-700 whitespace-pre-wrap">
+            {submission.rejection_reason || rejectionReason}
+          </p>
+        </div>
+      )}
 
       {/* Field data */}
       <div className="bg-white rounded-2xl border border-border shadow-sm p-6">

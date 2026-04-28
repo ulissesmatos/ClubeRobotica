@@ -10,8 +10,13 @@ const NAV_ITEMS = [
     prefixes: ["/admin/dashboard", "/admin/submissions"],
   },
   {
-    to: "/admin/forms",
+    to: "/admin/turmas",
     label: "Turmas",
+    prefixes: ["/admin/turmas"],
+  },
+  {
+    to: "/admin/forms",
+    label: "Formulários",
     prefixes: ["/admin/forms"],
   },
   {
