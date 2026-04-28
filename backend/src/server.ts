@@ -62,6 +62,29 @@ async function bootstrap() {
   runMigrations();
   seedPublicResults();
 
+  // Backfill nome_normalizado for any public_results rows that were inserted
+  // before the column existed or before the seed computed it properly.
+  {
+    const { getDb } = await import("./db/database");
+    const { normalizeStr } = await import("./services/results-matching.service");
+    const db = getDb();
+    const stale = db.prepare(
+      `SELECT id, nome_completo FROM public_results WHERE nome_normalizado = '' OR nome_normalizado IS NULL`
+    ).all() as { id: number; nome_completo: string }[];
+    if (stale.length > 0) {
+      const upd = db.prepare(`UPDATE public_results SET nome_normalizado = ? WHERE id = ?`);
+      db.exec("BEGIN");
+      try {
+        for (const row of stale) upd.run(normalizeStr(row.nome_completo), row.id);
+        db.exec("COMMIT");
+        console.log(`✅ Backfill nome_normalizado: ${stale.length} entradas atualizadas.`);
+      } catch (err) {
+        db.exec("ROLLBACK");
+        console.error("❌ Erro ao backfill nome_normalizado:", err);
+      }
+    }
+  }
+
   // ── Security headers ──
   await app.register(helmet, {
     crossOriginResourcePolicy: { policy: "same-site" },

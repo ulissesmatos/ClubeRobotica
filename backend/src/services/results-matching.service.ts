@@ -182,15 +182,19 @@ export interface DuplicateGroup {
 
 export function getDuplicates(): DuplicateGroup[] {
   const db = getDb();
+  // Use NULLIF to skip entries with empty nome_normalizado (not yet backfilled).
+  // Groups entries that share the exact same non-empty nome_normalizado + escola.
   const rows = db.prepare(`
     SELECT *
     FROM public_results
-    WHERE (nome_normalizado, escola) IN (
-      SELECT nome_normalizado, escola
-      FROM public_results
-      GROUP BY nome_normalizado, escola
-      HAVING COUNT(*) > 1
-    )
+    WHERE NULLIF(nome_normalizado, '') IS NOT NULL
+      AND (nome_normalizado, escola) IN (
+        SELECT nome_normalizado, escola
+        FROM public_results
+        WHERE NULLIF(nome_normalizado, '') IS NOT NULL
+        GROUP BY nome_normalizado, escola
+        HAVING COUNT(*) > 1
+      )
     ORDER BY escola, nome_normalizado, id
   `).all() as unknown as PublicResultRow[];
 
@@ -205,7 +209,7 @@ export function getDuplicates(): DuplicateGroup[] {
   return Array.from(map.entries()).map(([key, entries]) => ({ key, entries }));
 }
 
-// ─── Missing: inscriptions with no match in PDF ───────────────────────────────
+// ─── Missing: approved/reserva inscriptions not linked to any PDF entry ──────
 
 export interface MissingEntry {
   submission_id: number;
@@ -218,16 +222,9 @@ export interface MissingEntry {
 export function getMissing(): MissingEntry[] {
   const db = getDb();
 
-  // All public_results normalized names (all schools combined for quick lookup)
-  const pdfAll = db.prepare(`SELECT nome_normalizado FROM public_results`)
-    .all() as unknown as { nome_normalizado: string }[];
-  const pdfNormSet = new Set(pdfAll.map((r) => r.nome_normalizado));
-
-  if (pdfNormSet.size === 0) return [];
-
-  // All submissions (any status) with their nome_completo and nome_escola
-  // Using exact field names defined in the form seed
-  const all = db.prepare(`
+  // Approved/reserva submissions that have NO confirmed link in public_results.
+  // Uses direct FK check — reliable regardless of nome_normalizado accuracy.
+  return db.prepare(`
     SELECT
       s.id AS submission_id,
       s.protocol,
@@ -241,25 +238,14 @@ export function getMissing(): MissingEntry[] {
            AND sd.field_name = 'nome_escola'
          LIMIT 1) AS escola_inscricao
     FROM submissions s
-    WHERE EXISTS (
-      SELECT 1 FROM submission_data sd
-      WHERE sd.submission_id = s.id
-        AND sd.field_name = 'nome_completo'
-        AND sd.value_text IS NOT NULL
-        AND sd.value_text != ''
-    )
+    WHERE s.status IN ('aprovado', 'reserva')
+      AND NOT EXISTS (
+        SELECT 1 FROM public_results pr
+        WHERE pr.submission_id = s.id
+          AND pr.match_status = 'confirmed'
+      )
+    ORDER BY s.submitted_at ASC
   `).all() as unknown as MissingEntry[];
-
-  // Return submissions whose normalized name has no match (>=80%) in any PDF entry
-  return all.filter((sub) => {
-    if (!sub.nome_inscricao) return false;
-    const normInscricao = normalizeStr(sub.nome_inscricao);
-    // Check for any high-score match across all PDF names
-    for (const pdfName of pdfNormSet) {
-      if (matchScore(normInscricao, pdfName) >= 80) return false;
-    }
-    return true;
-  });
 }
 
 // ─── Auto-link all pending entries to their best candidate ────────────────────
